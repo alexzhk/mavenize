@@ -1,17 +1,14 @@
 package com.pentaho.maven.transform;
 
-import org.jdom2.Document;
-import org.jdom2.Element;
-import org.jdom2.JDOMException;
+import org.jdom2.*;
+import org.jdom2.filter.ElementFilter;
 import org.jdom2.input.SAXBuilder;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
 
 import java.io.*;
 import java.nio.file.*;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -21,6 +18,7 @@ public class PomModifier {
 
     public static final String API_MODULE_FOLDER = "api";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
+    public static String[] shimsToProcess = new String[]{"cdh58"};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
@@ -40,27 +38,41 @@ public class PomModifier {
         }
 
         PomModifier pomModifier = new PomModifier(args[0]);
-        pomModifier.addTransferGoalForAnt();
         pomModifier.moveShimsToMaven();
-        pomModifier.removeTransferGoalForAnt();
+       // pomModifier.removeTransferGoalForAnt();
         //new PomModifier(args[0]).executeCommand("ping pentaho.com");
 
         //new PomModifier(args[0]).createPom();
     }
 
     public void moveShimsToMaven() throws IOException {
+        List<String> shimList = Arrays.asList(shimsToProcess);
         try (Stream<Path> paths = Files.list(Paths.get(folder))) {
             paths.forEach(filePath -> {
                 if (Files.isDirectory(filePath)) {
                     //we are in the directory
-                    String fileName = filePath.getFileName().toString();
-                    if (fileName.equals(API_MODULE_FOLDER)) {
-                        //System.out.println(fileName);
+                    String shortFileName = filePath.getFileName().toString();
+                    if (shortFileName.equals(API_MODULE_FOLDER)) {
+                        //System.out.println(shortFileName);
+//                        try {
+//                            runForAnyProjects(filePath);
+//                            generatePropertyVersionSection(filePath);
+//                            //addAssemblySectionForShim(filePath);
+//                        } catch (IOException e) {
+//                            System.out.println("for some reasons movement for maven impossible " + e);
+//                        } catch (JDOMException e) {
+//                            e.printStackTrace();
+//                        }
+                    } else if (shimList.contains(shortFileName)) {
+                        //one of shim
                         try {
-                            moveSourceFolder(filePath);
-                            runTransferGoal(filePath);
+                            runForAnyProjects(filePath);
+                            runForShim(filePath);
+                            //add assembly section to plugin management
+                        } catch (JDOMException e) {
+                            e.printStackTrace();
                         } catch (IOException e) {
-                            System.out.println("for some reasons movement for maven impossible " + e);
+                            e.printStackTrace();
                         }
                     }
                 }
@@ -68,16 +80,182 @@ public class PomModifier {
         }
     }
 
+    private void runForShim(Path filePath) throws JDOMException, IOException {
+
+        addAssemblySectionForShim(filePath);
+        generatePropertyVersionSection(filePath);
+
+    }
+
+    private void runForAnyProjects(Path filePath) throws JDOMException, IOException {
+        System.out.println("current dir : " + filePath.toString() );
+        addTransferGoalForAnt(filePath.toString(), "build.xml");
+        moveSourceFolder(filePath);
+        runTransferGoal(filePath);
+        modifyPom(filePath);
+        removeTransferGoalTarget(filePath);
+    }
+
+    private void modifyPom(Path folder) throws JDOMException, IOException {
+        //for api just property section
+        //for shim add assembly section
+        //after that call assembly goal
+        //after that put plugin.xml to proper place, add to git
+
+        //remove build.files
+    }
+
+    //<version -> < groupId -> List<Artifact> >
+    //Artifact -> Dependency
+    private void generatePropertyVersionSection(Path folder) throws JDOMException, IOException {
+        String pomPath = Paths.get(folder.toString(), "pom.xml").toString();
+        gitAdd(pomPath);
+        Document documentFromFile = getDocumentFromFile(pomPath);
+        Element rootElement = documentFromFile.getRootElement();
+        List<Element> dependencyList = rootElement.getContent(new ElementFilter("dependencies")).get(0).getChildren();
+        System.out.println();
+        Map<String, Map<String, List<Artifact>>> versions = new HashMap<>();
+        Map<Artifact, Element> artifactElementMap = new HashMap<>();
+        dependencyList.stream().forEach(element -> {
+            String version = getTagValue(element, "version");
+            Map<String, List<Artifact>> map = versions.get(version) == null ? new HashMap<>() : versions.get(version);
+            String classifier = getTagValue(element, "classifier");
+            String groupId1 = getTagValue(element, "groupId");
+            Artifact artifact = new Artifact(groupId1, getTagValue(element, "artifactId"), version, classifier);
+            artifactElementMap.put(artifact, element);
+            boolean groupFound = false;
+            if (map.isEmpty()) {
+                ArrayList<Artifact> value = new ArrayList<>();
+                value.add(artifact);
+                map.put(groupId1, value);
+            } else {
+                if (!map.isEmpty()) {
+                    for (String groupId : map.keySet()) {
+                        if (map.get(groupId).get(0).getGroupId().equalsIgnoreCase(groupId1)) {
+                            groupFound = true;
+                            map.get(groupId).add(artifact);
+                        }
+                    }
+                    if (!groupFound) {
+                        ArrayList<Artifact> value = new ArrayList<>();
+                        value.add(artifact);
+                        map.put(groupId1, value);
+                    }
+                }
+            }
+            versions.put(version, map);
+        });
+
+
+        StringBuffer propertiesBuffer = new StringBuffer("<properties>\n");
+        Set<String> groupIds = new HashSet<>();
+        for (Map.Entry<String, Map<String, List<Artifact>>> entries : versions.entrySet()) {
+            String versionValue = entries.getKey();
+            Map<String, List<Artifact>> value = entries.getValue();
+            for (Map.Entry<String, List<Artifact>> groupsMap : value.entrySet()) {
+                String groupId = groupsMap.getValue().get(0).getGroupId();
+                String shortVersionString = groupId + ".version";
+                String versionString = "${" + shortVersionString + "}";
+                propertiesBuffer.append("<").append(shortVersionString).append(">").append(versionValue).append("</").append(shortVersionString).append(">\r\n");
+                for (Artifact artifact : groupsMap.getValue()) {
+                    artifactElementMap.get(artifact).getContent(new ElementFilter("version")).get(0).setText(versionString);
+                }
+                if (groupIds.contains(groupId)) {
+                    groupIds.add(groupId);
+                    System.out.println("AHTUNG!!!! ERROR!!!! 2 group ids found");
+                    throw new IllegalArgumentException("2 equal group ids found");
+                }
+            }
+        }
+        propertiesBuffer.append("</properties>");
+        System.out.println(propertiesBuffer.toString());
+        //Element versionElement = rootElement.getContent(new ElementFilter("version")).stream().findFirst().get();
+        addElementToDocument(propertiesBuffer.toString(), null, "version", rootElement, "");
+        updateNameSpaceParent(rootElement, "properties");
+        outputDoc(documentFromFile, Paths.get(folder.toString(), "pom_new.xml").toString());
+    }
+
+    private void updateNameSpaceParent(Element rootElement, String elementName) {
+        Element childElement = rootElement.getContent(new ElementFilter(elementName)).stream().findFirst().get();
+        updateNameSpaceParent(rootElement, childElement);
+    }
+
+    private void updateNameSpaceParent(Element rootElement, Element childElement) {
+        Namespace rootNameSpace = rootElement.getNamespace();
+        for (Element child : childElement.getChildren()) {
+            updateNameSpaceParent(rootElement, child);
+        }
+        childElement.setNamespace(rootNameSpace);
+    }
+
+    private String getTagValue(Element element, String tagName) {
+        List<Element> content = element.getContent(new ElementFilter(tagName));
+        if (content.size() == 0) {
+            return null;
+        }
+
+        Element element1 = content.get(0);
+        if (element1 == null) {
+            return null;
+        }
+        return element1.getValue();
+    }
+
+    private void runScriptAssemblyForming(Path folder) {
+        //how run bash script from java? - bash
+    }
+
+    private void addAssemblySectionForShim(Path folder) throws JDOMException, IOException {
+        String pomPath = Paths.get(folder.toString(), "pom.xml").toString();
+        Document documentFromFile = getDocumentFromFile(pomPath);
+        Element rootElement = documentFromFile.getRootElement();
+        Namespace parentNamespace = rootElement.getNamespace();
+        if (!rootElement.getContent(new ElementFilter("build")).stream().findFirst().isPresent()) {
+            Element buildElement = new Element("build", parentNamespace);
+            rootElement.addContent(buildElement);
+            buildElement.addContent(new Element("pluginManagement", parentNamespace));
+        }
+        addElementToParentNode("<plugin>\n" +
+                "<artifactId>maven-assembly-plugin</artifactId>\n" +
+                "<version>2.6</version>\n" +
+                "<executions>\n" +
+                "<execution>\n" +
+                "<id>pkg</id>\n" +
+                "<phase>package</phase>\n" +
+                "<goals>\n" +
+                "<goal>single</goal>\n" +
+                "</goals>\n" +
+                "</execution>\n" +
+                "</executions>\n" +
+                "<configuration>\n" +
+                "<descriptor>${basedir}/src/main/descriptor/assembly.xml</descriptor>\n" +
+                "<appendAssemblyId>false</appendAssemblyId>\n" +
+                "</configuration>\n" +
+                "</plugin>", "artifactId", "build", "pluginManagement", rootElement, "");
+        outputDoc(documentFromFile, pomPath);
+    }
+
+    private void addAssemblyFileToGit(Path folder) {
+
+    }
+
+    private void removeBuildFiles(Path folder) {
+
+    }
+
     private void runTransferGoal(Path folder) throws IOException {
-        executeCommand("ant transfer", folder.toString());
+        //todo: when not windows us ant.sh for run
+        executeCommand("ant.bat transfer", folder.toString());
     }
 
     public void createPom() throws JDOMException, IOException {
         //transfer ivy to pom
     }
 
-    public void addTransferGoalForAnt() throws JDOMException, IOException {
-        addElementToDocumentIfNotExist(Paths.get(folder, "common-shims-build.xml").toString(), "<target name=\"transfer\" depends=\"subfloor.resolve-default\">\n" +
+    private void addTransferGoalForAnt(String folder, String shortFileName) throws JDOMException, IOException {
+        String fullName = Paths.get(folder, shortFileName).toString();
+        System.out.println("build.xml at: " + fullName);
+        addElementToDocumentFileIfNotExist(fullName, "<target name=\"transfer\" depends=\"subfloor.resolve-default\">\n" +
                 "    <ivy:makepom ivyfile=\"${basedir}/ivy.xml\" pomfile=\"${basedir}/pom.xml\">\n" +
                 "      <mapping conf=\"default\" scope=\"compile\"/>\n" +
                 "      <mapping conf=\"pmr\" scope=\"compile\"/>\n" +
@@ -88,13 +266,20 @@ public class PomModifier {
                 "  </target>", "name");
     }
 
-    public void removeTransferGoalForAnt() throws JDOMException, IOException {
-        removeElementToDocumentIfNotExist(Paths.get(folder, "common-shims-build_after.xml").toString(), "target", "name", "transfer");
+//    public void addTransferGoalForAnt() throws JDOMException, IOException {
+//        addTransferGoalForAnt(folder, "common-shims-build.xml");
+//    }
+
+//    public void removeTransferGoalForAnt() throws JDOMException, IOException {
+//        removeTransferGoalTarget(Paths.get(folder, "common-shims-build.xml").toString(), "target", "name", "transfer");
+//    }
+
+    private void removeTransferGoalTarget(Path filePath) throws JDOMException, IOException {
+        removeTransferGoalTarget(Paths.get(filePath.toString(), "build.xml").toString(), "target", "name", "transfer");
     }
 
-    private void removeElementToDocumentIfNotExist(String fileName, String elementName, String attributeName, String attributeValue) throws JDOMException, IOException {
-        SAXBuilder jdomBuilder = new SAXBuilder();
-        Document document = jdomBuilder.build(fileName);
+    private void removeTransferGoalTarget(String fullName, String elementName, String attributeName, String attributeValue) throws JDOMException, IOException {
+        Document document = getDocumentFromFile(fullName);
         Element rootNode = document.getRootElement();
         List<Element> targetList = rootNode.getChildren(elementName);
         Optional<Element> first = targetList.
@@ -109,42 +294,79 @@ public class PomModifier {
         } else {
             System.out.println("element target not found and can't be deleted");
         }
-        outputDoc(document, "common-shims-build_after.xml");
+        outputDoc(document, fullName);
     }
 
-    private void addElementToDocumentIfNotExist(String fileName, String toAdd, String attributeName)
-            throws JDOMException, IOException {
+    private Document getDocumentFromFile(String fullName) throws JDOMException, IOException {
         SAXBuilder jdomBuilder = new SAXBuilder();
-        Document document = jdomBuilder.build(fileName);
+        return jdomBuilder.build(fullName);
+    }
+
+    private void addElementToDocumentFileIfNotExist(String fullFileName, String toAdd, String attributeName)
+            throws JDOMException, IOException {
+        Document document = getDocumentFromFile(fullFileName);
         Element rootNode = document.getRootElement();
 
-        Element targetElement = readElementFromString(toAdd);
+        addElementToDocument(toAdd, attributeName, null, rootNode, "xmlns:ivy=\"antlib:org.apache.ivy.ant\"");
 
-        List<Element> targetList = rootNode.getChildren(targetElement.getName());
-        Optional<Element> first = targetList.
-                stream().
-                filter(element -> element.getAttribute(attributeName).getValue().equalsIgnoreCase(targetElement.getAttributeValue(attributeName))).findFirst();
-
-        if (!first.isPresent()) {
-            //if not added
-            rootNode.addContent(targetElement);
-        }
-
-        outputDoc(document, "common-shims-build_after.xml");
+        outputDoc(document, fullFileName);
 
     }
 
-    private void outputDoc(Document document, String path) throws IOException {
+    private void addElementToDocument(String toAdd, String attributeName, String nodeNameAfter, Element rootNode, String nameSpace) throws JDOMException, IOException {
+        Element targetElement = readElementFromString(toAdd, nameSpace);
+
+        List<Element> targetList = rootNode.getChildren(targetElement.getName());
+        Optional<Element> existingOne;
+        if (attributeName != null) {
+            existingOne = targetList.
+                    stream().
+                    filter(element -> element.getAttribute(attributeName).getValue().equalsIgnoreCase(targetElement.getAttributeValue(attributeName))).findFirst();
+        } else {
+            existingOne = targetList.
+                    stream().findFirst();
+        }
+
+        if (!existingOne.isPresent()) {
+            //if not added
+            if (nodeNameAfter == null) {
+                rootNode.addContent(targetElement);
+            } else {
+                Element element = rootNode.getContent(new ElementFilter(nodeNameAfter)).stream().findFirst().get();
+                Parent parent = element.getParent();
+                parent.addContent(parent.indexOf(element), targetElement);
+            }
+        }
+    }
+
+    private void addElementToParentNode(String toAdd, String attributeName, String parentNodeName, String parentNodeName2, Element rootNode, String nameSpace) throws JDOMException, IOException {
+        Element targetElement = readElementFromString(toAdd, nameSpace);
+        Element attributeChecked = targetElement.getContent(new ElementFilter(attributeName)).get(0);
+        Element parentNode = rootNode.getContent(new ElementFilter(parentNodeName)).stream().findFirst().get().getContent(new ElementFilter(parentNodeName2)).get(0);
+        List<Element> elementList = parentNode.getContent(new ElementFilter(targetElement.getName()));
+        boolean found = false;
+        for (Element element : elementList) {
+            if (element.getContent(new ElementFilter(attributeName)).stream().findFirst().get().getValue().equals(attributeChecked.getValue())) {
+                found = true;
+            }
+        }
+        if (!found) {
+            parentNode.addContent(targetElement);
+        }
+        updateNameSpaceParent(rootNode, targetElement);
+    }
+
+    private void outputDoc(Document document, String fullFileName) throws IOException {
         XMLOutputter xmlOutput = new XMLOutputter();
 
         // display nice nice
         xmlOutput.setFormat(Format.getPrettyFormat());
-        xmlOutput.output(document, new FileWriter(Paths.get(folder, path).toString()));
+        xmlOutput.output(document, new FileWriter(Paths.get(fullFileName).toString()));
     }
 
-    private Element readElementFromString(String toAdd) throws JDOMException, IOException {
+    private Element readElementFromString(String toAdd, String namespace) throws JDOMException, IOException {
         SAXBuilder jdomBuilder2 = new SAXBuilder(false);
-        Document doc = jdomBuilder2.build(new StringReader("<just_wrapper_now xmlns:ivy=\"antlib:org.apache.ivy.ant\">" +
+        Document doc = jdomBuilder2.build(new StringReader("<just_wrapper_now "+namespace+">" +
                 toAdd +
                 "</just_wrapper_now>"));
         Element targetElement = doc.getRootElement().getChildren().stream().findFirst().get();
@@ -200,8 +422,6 @@ public class PomModifier {
         Process p;
         try {
             System.out.println(command);
-
-
             String[] commands = command.split("\\s");
             System.out.println("commands " + Arrays.toString(commands));
             ProcessBuilder builder = new ProcessBuilder(commands);
@@ -209,7 +429,7 @@ public class PomModifier {
             builder.directory(new File(folder));
             p = builder.start();
             //p = runtime.exec(command);
-            p.waitFor();
+            //p.waitFor();
             BufferedReader reader =
                     new BufferedReader(new InputStreamReader(p.getInputStream()));
 
@@ -252,6 +472,10 @@ public class PomModifier {
 //        }
         Path fromRoot = Paths.get(moduleFolder.toString(), from);
         if (goInside) {
+            if (!Files.exists(fromRoot)) {
+                System.out.println("folder " + fromRoot.toString() + " doesn't exist");
+                return;
+            }
             Optional<Path> first = Files.list(fromRoot).findFirst();
             if (!first.isPresent()) {
                 System.out.println("from folder is empty " + fromRoot);
