@@ -3,7 +3,6 @@ package com.pentaho.maven.transform;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
-import org.jdom2.Text;
 import org.jdom2.input.SAXBuilder;
 import org.jdom2.output.Format;
 import org.jdom2.output.XMLOutputter;
@@ -40,10 +39,13 @@ public class PomModifier {
             throw new IllegalArgumentException("No folder specified");
         }
 
-        //new PomModifier(args[0]).moveShimsToMaven();
+        PomModifier pomModifier = new PomModifier(args[0]);
+        pomModifier.addTransferGoalForAnt();
+        pomModifier.moveShimsToMaven();
+        pomModifier.removeTransferGoalForAnt();
         //new PomModifier(args[0]).executeCommand("ping pentaho.com");
 
-        new PomModifier(args[0]).createPom();
+        //new PomModifier(args[0]).createPom();
     }
 
     public void moveShimsToMaven() throws IOException {
@@ -56,6 +58,7 @@ public class PomModifier {
                         //System.out.println(fileName);
                         try {
                             moveSourceFolder(filePath);
+                            runTransferGoal(filePath);
                         } catch (IOException e) {
                             System.out.println("for some reasons movement for maven impossible " + e);
                         }
@@ -65,62 +68,89 @@ public class PomModifier {
         }
     }
 
-    public void createPom() throws JDOMException, IOException {
-        //transfer ivy to pom
-        SAXBuilder jdomBuilder = new SAXBuilder();
-        System.setProperty("user.dir", folder);
-        getDocumentFromYarnCluster(Paths.get(folder, "common-shims-build.xml").toString(), jdomBuilder);
+    private void runTransferGoal(Path folder) throws IOException {
+        executeCommand("ant transfer", folder.toString());
     }
 
-    private void getDocumentFromYarnCluster(String fileName, SAXBuilder jdomBuilder)
-            throws JDOMException, IOException {
+    public void createPom() throws JDOMException, IOException {
+        //transfer ivy to pom
+    }
+
+    public void addTransferGoalForAnt() throws JDOMException, IOException {
+        addElementToDocumentIfNotExist(Paths.get(folder, "common-shims-build.xml").toString(), "<target name=\"transfer\" depends=\"subfloor.resolve-default\">\n" +
+                "    <ivy:makepom ivyfile=\"${basedir}/ivy.xml\" pomfile=\"${basedir}/pom.xml\">\n" +
+                "      <mapping conf=\"default\" scope=\"compile\"/>\n" +
+                "      <mapping conf=\"pmr\" scope=\"compile\"/>\n" +
+                "      <mapping conf=\"client\" scope=\"compile\"/>\n" +
+                "      <mapping conf=\"provided\" scope=\"provided\"/>\n" +
+                "      <mapping conf=\"test\" scope=\"test\"/>\n" +
+                "    </ivy:makepom>\n" +
+                "  </target>", "name");
+    }
+
+    public void removeTransferGoalForAnt() throws JDOMException, IOException {
+        removeElementToDocumentIfNotExist(Paths.get(folder, "common-shims-build_after.xml").toString(), "target", "name", "transfer");
+    }
+
+    private void removeElementToDocumentIfNotExist(String fileName, String elementName, String attributeName, String attributeValue) throws JDOMException, IOException {
+        SAXBuilder jdomBuilder = new SAXBuilder();
         Document document = jdomBuilder.build(fileName);
         Element rootNode = document.getRootElement();
-        //Element project = rootNode.getChild("project");
-        List<Element> targetList = rootNode.getChildren("target");
+        List<Element> targetList = rootNode.getChildren(elementName);
         Optional<Element> first = targetList.
                 stream().
-                filter(element -> element.getAttribute("name").getValue().equalsIgnoreCase("transfer")).findFirst();
+                filter(element -> element.getAttribute(attributeName).getValue().equalsIgnoreCase(attributeValue))
+                        .findFirst();
+
+        if (first.isPresent()) {
+            //if not added
+            rootNode.removeContent(first.get());
+            System.out.println("element target transfer successfully deleted");
+        } else {
+            System.out.println("element target not found and can't be deleted");
+        }
+        outputDoc(document, "common-shims-build_after.xml");
+    }
+
+    private void addElementToDocumentIfNotExist(String fileName, String toAdd, String attributeName)
+            throws JDOMException, IOException {
+        SAXBuilder jdomBuilder = new SAXBuilder();
+        Document document = jdomBuilder.build(fileName);
+        Element rootNode = document.getRootElement();
+
+        Element targetElement = readElementFromString(toAdd);
+
+        List<Element> targetList = rootNode.getChildren(targetElement.getName());
+        Optional<Element> first = targetList.
+                stream().
+                filter(element -> element.getAttribute(attributeName).getValue().equalsIgnoreCase(targetElement.getAttributeValue(attributeName))).findFirst();
 
         if (!first.isPresent()) {
-            rootNode.addContent(new Text("<target name=\"transfer\" depends=\"subfloor.resolve-default\">\n" +
-                    "    <ivy:makepom ivyfile=\"${basedir}/ivy.xml\" pomfile=\"${basedir}/pom.xml\">\n" +
-                    "      <mapping conf=\"default\" scope=\"compile\"/>\n" +
-                    "      <mapping conf=\"pmr\" scope=\"compile\"/>\n" +
-                    "      <mapping conf=\"client\" scope=\"compile\"/>\n" +
-                    "      <mapping conf=\"provided\" scope=\"provided\"/>\n" +
-                    "      <mapping conf=\"test\" scope=\"test\"/>\n" +
-                    "    </ivy:makepom>\n" +
-                    "  </target>"));
+            //if not added
+            rootNode.addContent(targetElement);
         }
 
+        outputDoc(document, "common-shims-build_after.xml");
+
+    }
+
+    private void outputDoc(Document document, String path) throws IOException {
         XMLOutputter xmlOutput = new XMLOutputter();
 
         // display nice nice
-        //xmlOutput.setFormat(Format.getPrettyFormat());
-        xmlOutput.output(document, new FileWriter(Paths.get(folder, "common-shims-build_after.xml").toString()));
-
-        //System.out.println(list);
-
-        // String xml = openTag("test") + yarnCluster.getXML() + XMLHandler.closeTag(ENTRY_NODE_NAME);
-        // return jdomBuilder.build(new ByteArrayInputStream(xml.getBytes()));
+        xmlOutput.setFormat(Format.getPrettyFormat());
+        xmlOutput.output(document, new FileWriter(Paths.get(folder, path).toString()));
     }
 
-//    public static String openTag( String tag ) {
-//        return openTag( new StringBuilder(), tag ).toString();
-//    }
-//
-//    public static StringBuilder openTag( StringBuilder builder, String tag ) {
-//        return builder.append( '<' ).append( tag ).append( '>' );
-//    }
-//
-//    public static String closeTag( String tag ) {
-//        return closeTag( new StringBuilder(), tag ).toString();
-//    }
-//
-//    public static StringBuilder closeTag( StringBuilder builder, String tag ) {
-//        return builder.append( "</" ).append( tag ).append( '>' );
-//    }
+    private Element readElementFromString(String toAdd) throws JDOMException, IOException {
+        SAXBuilder jdomBuilder2 = new SAXBuilder(false);
+        Document doc = jdomBuilder2.build(new StringReader("<just_wrapper_now xmlns:ivy=\"antlib:org.apache.ivy.ant\">" +
+                toAdd +
+                "</just_wrapper_now>"));
+        Element targetElement = doc.getRootElement().getChildren().stream().findFirst().get();
+        targetElement.detach();
+        return targetElement;
+    }
 
     public void moveSourceFolder(Path moduleFolder) throws IOException {
         for (String sourceFolder : sourceFolderArrayMaven) {
@@ -162,6 +192,10 @@ public class PomModifier {
     }
 
     private String executeCommand(String command) throws IOException {
+        return executeCommand(command, folder);
+    }
+
+    private String executeCommand(String command, String folder) throws IOException {
         StringBuffer output = new StringBuffer();
         Process p;
         try {
