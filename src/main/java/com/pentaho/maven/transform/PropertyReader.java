@@ -30,10 +30,6 @@ public class PropertyReader {
             prop.load(input);
 
             // get the property value and print it out
-            System.out.println();
-            System.out.println(prop.getProperty("common.hbase.shim.version"));
-            System.out.println(prop.getProperty("common.pig.shim.version"));
-            System.out.println(prop.getProperty("hbase.generation"));
             return new ShimProperties(prop.getProperty("common.hadoop.shim.version"), prop.getProperty("common.hbase.shim.version"),
                     prop.getProperty("hbase.generation"), prop.getProperty("common.pig.shim.version"));
         } catch (IOException ex) {

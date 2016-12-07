@@ -50,6 +50,9 @@ public class XmlUtils {
 
         if (!existingOne.isPresent()) {
             //if not added
+            if (nameSpace == null || nameSpace.trim().isEmpty()) {
+                updateNameSpaceParent(rootNode, targetElement);
+            }
             if (nodeNameAfter == null) {
                 rootNode.addContent(targetElement);
             } else {

@@ -1,10 +1,7 @@
 package com.pentaho.maven.transform;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.util.Optional;
 
 /**
@@ -42,8 +39,20 @@ public class FileUtils {
         String firstTestPackageFolder = antTestSourceFolder.getFileName().toString();
         Path mavenTestSourceFolder = Paths.get(moduleFolder.toString(), to, firstTestPackageFolder);
         System.out.println("moving " + antTestSourceFolder + " to " + mavenTestSourceFolder);
+        moveFile(antTestSourceFolder, mavenTestSourceFolder);
+    }
+
+    public static void moveFile(Path antTestSourceFolder, Path mavenTestSourceFolder) throws IOException {
         try {
             Files.move(antTestSourceFolder, mavenTestSourceFolder);
+        } catch (NoSuchFileException e) {
+            System.out.println("nothing to be moved " + antTestSourceFolder + " to " + mavenTestSourceFolder);
+        }
+    }
+
+    public static void moveFileReplace(Path antTestSourceFolder, Path mavenTestSourceFolder) throws IOException {
+        try {
+            Files.move(antTestSourceFolder, mavenTestSourceFolder, StandardCopyOption.REPLACE_EXISTING);
         } catch (NoSuchFileException e) {
             System.out.println("nothing to be moved " + antTestSourceFolder + " to " + mavenTestSourceFolder);
         }
