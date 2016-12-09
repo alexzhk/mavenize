@@ -65,20 +65,22 @@ public class MainRunner {
                 if (Files.isDirectory(filePath)) {
                     //we are in the directory
                     String shortFileName = filePath.getFileName().toString();
+                    moduleBashExecutor = new BashExecutor(filePath);
                     if (shortFileName.equals(API_MODULE_FOLDER)) {
-                        LOG.debug("run for api");
-                        try {
-                            runForApiProject(filePath);
-                        } catch (JDOMException | IOException e) {
-                            LOG.error("Api module can't be processed " + e.getMessage());
-                        }
+//                        LOG.debug("run for api");
+//                        try {
+//                            runForApiProject(filePath);
+//                        } catch (JDOMException | IOException e) {
+//                            LOG.error("Api module can't be processed " + e.getMessage());
+//                        }
                     } else if (shimList.contains(shortFileName)) {
                         //one of shim
                         try {
                             LOG.info("shim " + shortFileName + " started");
-                            runForShim(filePath);
+                            //runForShim(filePath);
+                            runCompareForShim(filePath);
                             LOG.info("shim " + shortFileName + " finished successfully");
-                        } catch (JDOMException | IOException | ShimCannotBeProcessed e) {
+                        } catch (IOException e) {
                             e.printStackTrace();
                             LOG.error("Shim can't be processed " + e.getMessage());
                         }
@@ -88,8 +90,20 @@ public class MainRunner {
         }
     }
 
+    private void runCompareForShim(Path filePath) throws IOException {
+        //moduleBashExecutor.executeCommand("ant.bat clean-all resolve dist");
+        moduleBashExecutor.executeCommand("mvn.cmd clean install");
+        Optional<Path> zipArchiveAnt = Files.list(Paths.get(filePath.toString(), "dist")).filter(path -> path.getFileName().endsWith("zip")).findFirst();
+        Optional<Path> zipArchiveMaven = Files.list(Paths.get(filePath.toString(), "target")).filter(path -> path.getFileName().endsWith("zip")).findFirst();
+//        moduleBashExecutor.executeCommand("unzip dist/" + zipArchiveAnt.get().toString());
+//        moduleBashExecutor.executeCommand("unzip target/" + zipArchiveMaven.get().toString());
+//
+//        Optional<Path> unArchiveAnt = Files.list(Paths.get(filePath.toString(), "dist")).filter(path -> Files.isDirectory(path)).findFirst();
+//        Optional<Path> unArchiveMaven = Files.list(Paths.get(filePath.toString(), "target")).filter(path -> Files.isDirectory(path)).findFirst();
+//        new DirectoryComparator().compare(unArchiveAnt.get(), unArchiveMaven.get());
+    }
+
     private void runForApiProject(Path modulePath) throws JDOMException, IOException {
-        moduleBashExecutor = new BashExecutor(modulePath);
         addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
         moveSourceFolder(modulePath);
         runTransferGoal(modulePath);
@@ -99,8 +113,6 @@ public class MainRunner {
     }
 
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed {
-        moduleBashExecutor = new BashExecutor(modulePath);
-
         addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
         runTransferGoal(modulePath);
 
