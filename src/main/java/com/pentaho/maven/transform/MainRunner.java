@@ -1,5 +1,12 @@
 package com.pentaho.maven.transform;
 
+import com.pentaho.maven.transform.xml.XmlUtils;
+import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
+import com.pentaho.maven.transform.xml.condition.ElementWithAttributeCondition;
+import com.pentaho.maven.transform.xml.condition.ParentPathCondition;
+import com.pentaho.maven.transform.xml.insert.AfterChildInserter;
+import com.pentaho.maven.transform.xml.insert.ToParentInserter;
+import com.pentaho.maven.transform.xml.insert.ToParentPathInserter;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
@@ -26,6 +33,12 @@ public class MainRunner {
     public static final String API_MODULE_FOLDER = "api";
     public static final String ASSEMBLY_XML = "assembly.xml";
     public static final String BUILD_XML = "build.xml";
+    public static final String ANT_TARGET_FOLDER = "dist";
+    public static final String MAVEN_TARGET_FOLDER = "target";
+    public static final String ZIP_EXTENSION = "zip";
+    public static final String TEMP_EXTRACT_FOLDER = "extract";
+    public static final String DEFAULT_FOLDER = "lib";
+    public static final String CLIENT_FOLDER = "client";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
     public static String[] shimsToProcess = new String[]{"cdh58"};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
@@ -67,20 +80,20 @@ public class MainRunner {
                     String shortFileName = filePath.getFileName().toString();
                     moduleBashExecutor = new BashExecutor(filePath);
                     if (shortFileName.equals(API_MODULE_FOLDER)) {
-//                        LOG.debug("run for api");
-//                        try {
-//                            runForApiProject(filePath);
-//                        } catch (JDOMException | IOException e) {
-//                            LOG.error("Api module can't be processed " + e.getMessage());
-//                        }
+                        LOG.debug("run for api");
+                        try {
+                            runForApiProject(filePath);
+                        } catch (JDOMException | IOException e) {
+                            LOG.error("Api module can't be processed " + e.getMessage());
+                        }
                     } else if (shimList.contains(shortFileName)) {
                         //one of shim
                         try {
                             LOG.info("shim " + shortFileName + " started");
-                            //runForShim(filePath);
-                            runCompareForShim(filePath);
+                            runForShim(filePath);
+                            //runCompareForShim(filePath);
                             LOG.info("shim " + shortFileName + " finished successfully");
-                        } catch (IOException e) {
+                        } catch (IOException | JDOMException | ShimCannotBeProcessed e) {
                             e.printStackTrace();
                             LOG.error("Shim can't be processed " + e.getMessage());
                         }
@@ -90,62 +103,57 @@ public class MainRunner {
         }
     }
 
-    private void runCompareForShim(Path filePath) throws IOException {
-        //now only for windows
-        //moduleBashExecutor.executeCommand("ant.bat clean-all resolve dist");
-        //moduleBashExecutor.executeCommand("mvn.cmd clean install");
-        Optional<Path> zipArchiveAnt = Files.list(Paths.get(filePath.toString(), "dist")).filter(path -> path.getFileName().toString().endsWith("zip")).findFirst();
-        Optional<Path> zipArchiveMaven = Files.list(Paths.get(filePath.toString(), "target")).filter(path -> path.getFileName().toString().endsWith("zip")).findFirst();
+    private void runCompareForShim(Path modulePath) throws IOException {
+        moduleBashExecutor.runAntCleanAllResolveDist();
+        moduleBashExecutor.runMvnCleanInstall();
+        Optional<Path> zipArchiveAnt = Files.list(Paths.get(modulePath.toString(), ANT_TARGET_FOLDER)).filter(path -> path.getFileName().toString().endsWith(ZIP_EXTENSION)).findFirst();
+        Optional<Path> zipArchiveMaven = Files.list(Paths.get(modulePath.toString(), MAVEN_TARGET_FOLDER)).filter(path -> path.getFileName().toString().endsWith(ZIP_EXTENSION)).findFirst();
         //for running this 7z needed installed
-//        moduleBashExecutor.executeCommand("7z x " + zipArchiveAnt.get().toString() + " -odist/extract -y -r");
-//        moduleBashExecutor.executeCommand("7z x " + zipArchiveMaven.get().toString() + " -otarget/extract -y -r");
+        moduleBashExecutor.unArchive(zipArchiveAnt.get(), Paths.get(modulePath.toString(), ANT_TARGET_FOLDER, TEMP_EXTRACT_FOLDER));
+        moduleBashExecutor.unArchive(zipArchiveMaven.get(), Paths.get(modulePath.toString(), MAVEN_TARGET_FOLDER, TEMP_EXTRACT_FOLDER));
 
-        Path unArchiveAnt = Paths.get(filePath.toString(), "dist/extract/"+filePath.getFileName() + "/lib/client");
-        Path unArchiveMaven = Paths.get(filePath.toString(), "target/extract/"+filePath.getFileName() + "/lib/client");
-        new DirectoryComparator().compare(unArchiveAnt, unArchiveMaven);
+        Path unArchiveAntFolder = Paths.get(modulePath.toString(), ANT_TARGET_FOLDER, TEMP_EXTRACT_FOLDER, modulePath.getFileName().toString(),
+                DEFAULT_FOLDER, CLIENT_FOLDER);
+        Path unArchiveMavenFolder = Paths.get(modulePath.toString(), MAVEN_TARGET_FOLDER, TEMP_EXTRACT_FOLDER,
+                modulePath.getFileName().toString(), DEFAULT_FOLDER, CLIENT_FOLDER);
+        new DirectoryComparator().compare(unArchiveAntFolder, unArchiveMavenFolder);
     }
 
     private void runForApiProject(Path modulePath) throws JDOMException, IOException {
-        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
-        moveSourceFolder(modulePath);
-        runTransferGoal(modulePath);
-        VersionGenerator.generatePropertyVersionSection(modulePath);
-        addParentSection(modulePath);
-        removeTransferGoalTarget(modulePath);
+//        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
+//        moveSourceFolder(modulePath);
+//        runTransferGoal(modulePath);
+//        VersionGenerator.generatePropertyVersionSection(modulePath);
+//        addParentSection(modulePath);
+//        removeTransferGoalTarget(modulePath);
     }
 
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed {
-        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
-        runTransferGoal(modulePath);
-
-        addAssemblySectionForShim(modulePath);
-        runScriptAssemblyGenerating(modulePath);
-
-        moveSourceFolder(modulePath);
+//        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
+//        runTransferGoal(modulePath);
+//
+//        addAssemblySectionForShim(modulePath);
+//        runScriptAssemblyGenerating(modulePath);
+//
+//        moveSourceFolder(modulePath);
         ShimProperties shimProperties = new PropertyReader(modulePath).readShimProperties();
         addCommonSourceFolderInclusions(modulePath, shimProperties);
         addResourceFolders(modulePath, shimProperties);
-        VersionGenerator.generatePropertyVersionSection(modulePath);
-        addParentSection(modulePath);
-
-        moveGenerateAssembly(modulePath);
-
-        //cleanup
-        removeTransferGoalTarget(modulePath);
+//        VersionGenerator.generatePropertyVersionSection(modulePath);
+//        addParentSection(modulePath);
+//
+//        moveGenerateAssembly(modulePath);
+////
+////        //cleanup
+//        removeTransferGoalTarget(modulePath);
     }
 
     private void addParentSection(Path modulePath) throws JDOMException, IOException {
         String pomPath = Paths.get(modulePath.toString(), VersionGenerator.POM_XML).toString();
-        Document documentFromFile = XmlUtils.getDocumentFromFile(pomPath);
-        Element rootElement = documentFromFile.getRootElement();
-        XmlUtils.addElementToDocument(
-                "<parent>\n" +
-                        "    <groupId>pentaho</groupId>\n" +
-                        "    <artifactId>pentaho-hadoop-shims-parent</artifactId>\n" +
-                        "    <version>7.1-SNAPSHOT</version>\n" +
-                        "  </parent>"
-               , null, "modelVersion", rootElement, "");
-        XmlUtils.outputDoc(documentFromFile, pomPath);
+        XmlUtils.addElementToDocumentFile(
+                pomPath,
+                Constants.PARENT_TAG
+                , new ElementExistCondition(), new AfterChildInserter("modelVersion"), "");
     }
 
     private void runScriptAssemblyGenerating(Path modulePath) throws IOException {
@@ -159,7 +167,7 @@ public class MainRunner {
         if (!Files.exists(fullAssemblyPath)) {
             String msg = "no assembly generated by some reasons";
             LOG.error(msg);
-           // throw new ShimCannotBeProcessed(msg);
+            // throw new ShimCannotBeProcessed(msg);
         }
         FileUtils.moveFileReplace(fullAssemblyPath, neededFullAssemblyPath);
         rootFolderExecutor.gitAdd(neededFullAssemblyPath);
@@ -176,8 +184,9 @@ public class MainRunner {
             sourceDirectory.setText("../");
             sourceDirectory.setNamespace(rootElement.getNamespace());
             buildElement.addContent(sourceDirectory);
-            XmlUtils.addElementToParentNode(
-                            "<resources>\n" +
+            String[] parentNodes = {"build"};
+            XmlUtils.addElement(
+                    "<resources>\n" +
                             "      <resource>\n" +
                             "        <directory>src/main/resources</directory>\n" +
                             "      </resource>\n" +
@@ -209,16 +218,15 @@ public class MainRunner {
                             "          <include>**/*.properties</include>\n" +
                             "        </includes>\n" +
                             "      </resource>\n" +
-                            "    </resources>", null, "build", null, rootElement, "");
+                            "    </resources>", rootElement, new ParentPathCondition(parentNodes), new ToParentPathInserter(parentNodes), "");
             XmlUtils.outputDoc(documentFromFile, pomPath);
         }
     }
 
     private void addCommonSourceFolderInclusions(Path folder, ShimProperties shimProperties) throws JDOMException, IOException {
         String pomPath = Paths.get(folder.toString(), "pom.xml").toString();
-        Document documentFromFile = XmlUtils.getDocumentFromFile(pomPath);
-        Element rootElement = documentFromFile.getRootElement();
-        XmlUtils.addElementToParentNode(
+        String[] parentNodes = {"build", "plugins"};
+        XmlUtils.addElementToDocumentFile(pomPath,
                 " <plugin>" +
                         "          <groupId>org.apache.maven.plugins</groupId>" +
                         "          <artifactId>maven-compiler-plugin</artifactId>" +
@@ -236,8 +244,7 @@ public class MainRunner {
                         "                   <include>" + folder.getFileName() + "/src/main/java/**/*.java</include>" +
                         "               </includes>\n" +
                         "          </configuration>" +
-                        "</plugin>", "artifactId", "build", "plugins", rootElement, "");
-        XmlUtils.outputDoc(documentFromFile, pomPath);
+                        "</plugin>", new ParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
     }
 
     private String getHbaseVersion(ShimProperties shimProperties) {
@@ -266,23 +273,8 @@ public class MainRunner {
             rootElement.addContent(buildElement);
             buildElement.addContent(new Element("plugins", parentNamespace));
         }
-        XmlUtils.addElementToParentNode("<plugin>\n" +
-                "<artifactId>maven-assembly-plugin</artifactId>\n" +
-                "<version>2.6</version>\n" +
-                "<executions>\n" +
-                "<execution>\n" +
-                "<id>pkg</id>\n" +
-                "<phase>package</phase>\n" +
-                "<goals>\n" +
-                "<goal>single</goal>\n" +
-                "</goals>\n" +
-                "</execution>\n" +
-                "</executions>\n" +
-                "<configuration>\n" +
-                "<descriptor>${basedir}/src/main/descriptor/assembly.xml</descriptor>\n" +
-                "<appendAssemblyId>false</appendAssemblyId>\n" +
-                "</configuration>\n" +
-                "</plugin>", "artifactId", "build", "plugins", rootElement, "");
+        String[] parentNodes = {"build", "plugins"};
+        XmlUtils.addElement(Constants.ASSEMBLY_PLUGIN, rootElement, new ParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
         XmlUtils.outputDoc(documentFromFile, pomPath);
     }
 
@@ -294,15 +286,7 @@ public class MainRunner {
     private void addTransferGoalForAnt(String folder, String shortFileName) throws JDOMException, IOException {
         String fullName = Paths.get(folder, shortFileName).toString();
         LOG.debug("build.xml at: " + fullName);
-        XmlUtils.addElementToDocumentFileIfNotExist(fullName, "<target name=\"transfer\" depends=\"subfloor.resolve-default\">\n" +
-                "    <ivy:makepom ivyfile=\"${basedir}/ivy.xml\" pomfile=\"${basedir}/pom.xml\">\n" +
-                "      <mapping conf=\"default\" scope=\"compile\"/>\n" +
-                "      <mapping conf=\"pmr\" scope=\"compile\"/>\n" +
-                "      <mapping conf=\"client\" scope=\"compile\"/>\n" +
-                "      <mapping conf=\"provided\" scope=\"provided\"/>\n" +
-                "      <mapping conf=\"test\" scope=\"test\"/>\n" +
-                "    </ivy:makepom>\n" +
-                "  </target>", "name");
+        XmlUtils.addElementToDocumentFile(fullName, Constants.MAKEPOM_TARGET, new ElementWithAttributeCondition("name"), new ToParentInserter(), "xmlns:ivy=\"antlib:org.apache.ivy.ant\"");
     }
 
     private void removeTransferGoalTarget(Path filePath) throws JDOMException, IOException {
@@ -366,18 +350,5 @@ public class MainRunner {
     //              //git add pom.xml, move folder of sources - git modification of folder
     //                  remove build.properties,build.xml,ivy.xml
     //              add 2 sections - META-INF, sources; tests? according to build.properties
-
-    //function for one folder
-    //  transfer
-    //  properties
-    //
-
-    //    public void addTransferGoalForAnt() throws JDOMException, IOException {
-//        addTransferGoalForAnt(folder, "common-shims-build.xml");
-//    }
-
-//    public void removeTransferGoalForAnt() throws JDOMException, IOException {
-//        removeTransferGoalTarget(Paths.get(folder, "common-shims-build.xml").toString(), "target", "name", "transfer");
-//    }
 
 }

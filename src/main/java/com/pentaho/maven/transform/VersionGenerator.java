@@ -1,5 +1,8 @@
 package com.pentaho.maven.transform;
 
+import com.pentaho.maven.transform.xml.XmlUtils;
+import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
+import com.pentaho.maven.transform.xml.insert.AfterChildInserter;
 import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
@@ -89,7 +92,7 @@ public class VersionGenerator {
             propertiesBuffer.append("</properties>");
             System.out.println(propertiesBuffer.toString());
             //Element versionElement = rootElement.getContent(new ElementFilter("version")).stream().findFirst().get();
-            XmlUtils.addElementToDocument(propertiesBuffer.toString(), null, "version", rootElement, "");
+            XmlUtils.addElement(propertiesBuffer.toString(), rootElement, new ElementExistCondition(), new AfterChildInserter("artifactId"), "");
             XmlUtils.updateNameSpaceParent(rootElement, "properties");
             XmlUtils.outputDoc(documentFromFile, Paths.get(folder.toString(), POM_XML).toString());
         }

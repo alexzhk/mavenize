@@ -75,4 +75,19 @@ public class BashExecutor {
     public void gitRemove(String path) throws IOException {
         executeCommand("git rm -r -f " + path);
     }
+
+    public void runMvnCleanInstall() throws IOException {
+        //todo: according to operating system should be needed file and path, now run on windows
+        executeCommand("mvn.cmd clean install");
+    }
+
+    public void runAntCleanAllResolveDist() throws IOException {
+        //todo: according to operating system should be needed file and path, now run on windows
+        executeCommand("ant.bat clean-all resolve dist");
+    }
+
+    public void unArchive(Path file, Path folderToExtract) throws IOException {
+        //todo: make java unzipping
+        executeCommand("7z x " + file.toString() + " -o"+folderToExtract+" -y -r");
+    }
 }
