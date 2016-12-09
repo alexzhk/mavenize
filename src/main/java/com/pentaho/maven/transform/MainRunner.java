@@ -91,16 +91,18 @@ public class MainRunner {
     }
 
     private void runCompareForShim(Path filePath) throws IOException {
+        //now only for windows
         //moduleBashExecutor.executeCommand("ant.bat clean-all resolve dist");
-        moduleBashExecutor.executeCommand("mvn.cmd clean install");
-        Optional<Path> zipArchiveAnt = Files.list(Paths.get(filePath.toString(), "dist")).filter(path -> path.getFileName().endsWith("zip")).findFirst();
-        Optional<Path> zipArchiveMaven = Files.list(Paths.get(filePath.toString(), "target")).filter(path -> path.getFileName().endsWith("zip")).findFirst();
-//        moduleBashExecutor.executeCommand("unzip dist/" + zipArchiveAnt.get().toString());
-//        moduleBashExecutor.executeCommand("unzip target/" + zipArchiveMaven.get().toString());
-//
-//        Optional<Path> unArchiveAnt = Files.list(Paths.get(filePath.toString(), "dist")).filter(path -> Files.isDirectory(path)).findFirst();
-//        Optional<Path> unArchiveMaven = Files.list(Paths.get(filePath.toString(), "target")).filter(path -> Files.isDirectory(path)).findFirst();
-//        new DirectoryComparator().compare(unArchiveAnt.get(), unArchiveMaven.get());
+        //moduleBashExecutor.executeCommand("mvn.cmd clean install");
+        Optional<Path> zipArchiveAnt = Files.list(Paths.get(filePath.toString(), "dist")).filter(path -> path.getFileName().toString().endsWith("zip")).findFirst();
+        Optional<Path> zipArchiveMaven = Files.list(Paths.get(filePath.toString(), "target")).filter(path -> path.getFileName().toString().endsWith("zip")).findFirst();
+        //for running this 7z needed installed
+//        moduleBashExecutor.executeCommand("7z x " + zipArchiveAnt.get().toString() + " -odist/extract -y -r");
+//        moduleBashExecutor.executeCommand("7z x " + zipArchiveMaven.get().toString() + " -otarget/extract -y -r");
+
+        Path unArchiveAnt = Paths.get(filePath.toString(), "dist/extract/"+filePath.getFileName() + "/lib/client");
+        Path unArchiveMaven = Paths.get(filePath.toString(), "target/extract/"+filePath.getFileName() + "/lib/client");
+        new DirectoryComparator().compare(unArchiveAnt, unArchiveMaven);
     }
 
     private void runForApiProject(Path modulePath) throws JDOMException, IOException {
