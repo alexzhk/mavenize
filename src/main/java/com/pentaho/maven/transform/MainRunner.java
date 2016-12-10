@@ -1,6 +1,7 @@
 package com.pentaho.maven.transform;
 
 import com.pentaho.maven.transform.xml.XmlUtils;
+import com.pentaho.maven.transform.xml.XmlUtilsJDom1;
 import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
 import com.pentaho.maven.transform.xml.condition.ElementWithAttributeCondition;
 import com.pentaho.maven.transform.xml.condition.ParentPathCondition;
@@ -26,6 +27,12 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
+ * run convert for all project from mvn to ant
+ * the only argument to main is the folder where project pentaho-hadoop-shims is checked out
+ * for now main.sh, tmp.sh should be there - could be checkout VasilinaTerehova/pentaho-haodop-shims/BAD-570
+ * api folder proccessed separately - just folder to maven structure movement, convert pom, generate versions property section, add parent tag
+ * for every shim the previous actions take part, assembly plugin section put, also script with generating assembly.xml starts which, after script finishes
+ * assembly move to needed folder, add to github
  * Created by Vasilina_Terehova on 12/5/2016.
  */
 public class MainRunner {
@@ -39,8 +46,9 @@ public class MainRunner {
     public static final String TEMP_EXTRACT_FOLDER = "extract";
     public static final String DEFAULT_FOLDER = "lib";
     public static final String CLIENT_FOLDER = "client";
+    public static final String DESCRIPTOR_FOLDER = "src/main/descriptor";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
-    public static String[] shimsToProcess = new String[]{"cdh58"};
+    public static String[] shimsToProcess = new String[]{"emr310"/*, "cdh58"*/};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
@@ -91,7 +99,6 @@ public class MainRunner {
                         try {
                             LOG.info("shim " + shortFileName + " started");
                             runForShim(filePath);
-                            //runCompareForShim(filePath);
                             LOG.info("shim " + shortFileName + " finished successfully");
                         } catch (IOException | JDOMException | ShimCannotBeProcessed e) {
                             e.printStackTrace();
@@ -120,32 +127,34 @@ public class MainRunner {
     }
 
     private void runForApiProject(Path modulePath) throws JDOMException, IOException {
-//        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
-//        moveSourceFolder(modulePath);
-//        runTransferGoal(modulePath);
-//        VersionGenerator.generatePropertyVersionSection(modulePath);
-//        addParentSection(modulePath);
-//        removeTransferGoalTarget(modulePath);
+        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
+        moveSourceFolder(modulePath);
+        runTransferGoal(modulePath);
+        VersionGenerator.generatePropertyVersionSection(modulePath);
+        addParentSection(modulePath);
+        removeTransferGoalTarget(modulePath);
     }
 
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed {
-//        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
-//        runTransferGoal(modulePath);
-//
-//        addAssemblySectionForShim(modulePath);
-//        runScriptAssemblyGenerating(modulePath);
-//
-//        moveSourceFolder(modulePath);
+        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
+        XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
+        runTransferGoal(modulePath);
+
+        addAssemblySectionForShim(modulePath);
+        runScriptAssemblyGenerating(modulePath);
+
+        moveSourceFolder(modulePath);
         ShimProperties shimProperties = new PropertyReader(modulePath).readShimProperties();
         addCommonSourceFolderInclusions(modulePath, shimProperties);
         addResourceFolders(modulePath, shimProperties);
-//        VersionGenerator.generatePropertyVersionSection(modulePath);
-//        addParentSection(modulePath);
+        VersionGenerator.generatePropertyVersionSection(modulePath);
+        addParentSection(modulePath);
+
+        moveGenerateAssembly(modulePath);
 //
-//        moveGenerateAssembly(modulePath);
-////
-////        //cleanup
-//        removeTransferGoalTarget(modulePath);
+//        //cleanup
+        removeTransferGoalTarget(modulePath);
+        runCompareForShim(modulePath);
     }
 
     private void addParentSection(Path modulePath) throws JDOMException, IOException {
@@ -162,12 +171,16 @@ public class MainRunner {
     }
 
     private void moveGenerateAssembly(Path modulePath) throws ShimCannotBeProcessed, IOException {
+        Path desriptorFolder = Paths.get(modulePath.toString(), DESCRIPTOR_FOLDER);
         Path fullAssemblyPath = Paths.get(modulePath.toString(), ASSEMBLY_XML);
-        Path neededFullAssemblyPath = Paths.get(modulePath.toString(), "src/main/descriptor", ASSEMBLY_XML);
+        Path neededFullAssemblyPath = Paths.get(modulePath.toString(), DESCRIPTOR_FOLDER, ASSEMBLY_XML);
         if (!Files.exists(fullAssemblyPath)) {
             String msg = "no assembly generated by some reasons";
             LOG.error(msg);
             // throw new ShimCannotBeProcessed(msg);
+        }
+        if (!Files.exists(desriptorFolder)) {
+            Files.createDirectory(desriptorFolder);
         }
         FileUtils.moveFileReplace(fullAssemblyPath, neededFullAssemblyPath);
         rootFolderExecutor.gitAdd(neededFullAssemblyPath);
@@ -248,7 +261,7 @@ public class MainRunner {
     }
 
     private String getHbaseVersion(ShimProperties shimProperties) {
-        return shimProperties.getHbaseVersion() == null ? "pre-1.0" : shimProperties.getHbaseVersion();
+        return shimProperties.getHbaseGenerationVersion() == null ? "pre-1.0" : shimProperties.getHbaseGenerationVersion();
     }
 
     private void addForSubversionControl(Path folder) throws IOException {

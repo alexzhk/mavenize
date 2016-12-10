@@ -7,4 +7,8 @@ public class ShimCannotBeProcessed extends Exception {
     public ShimCannotBeProcessed(String message) {
         super(message);
     }
+
+    public ShimCannotBeProcessed(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

@@ -1,12 +1,11 @@
 package com.pentaho.maven.transform.xml;
 
 import com.pentaho.maven.transform.xml.condition.BaseConditionCheck;
-import com.pentaho.maven.transform.xml.condition.ConditionToCheck;
-import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
-import com.pentaho.maven.transform.xml.condition.ElementWithAttributeCondition;
 import com.pentaho.maven.transform.xml.insert.BaseInsertOperation;
-import com.pentaho.maven.transform.xml.insert.ToParentInserter;
-import org.jdom2.*;
+import org.jdom2.Document;
+import org.jdom2.Element;
+import org.jdom2.JDOMException;
+import org.jdom2.Namespace;
 import org.jdom2.filter.ElementFilter;
 import org.jdom2.input.SAXBuilder;
 import org.jdom2.output.Format;
@@ -17,9 +16,10 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Paths;
 import java.util.List;
-import java.util.Optional;
 
 /**
+ * jdom2 excapes brackets <> which doesn't work for ivy scopes default->default
+ * XmlOutputter in jdom2 is final so to reload default behaviour jdom1 is used here
  * Created by Vasilina_Terehova on 12/7/2016.
  */
 public class XmlUtils {
@@ -60,7 +60,7 @@ public class XmlUtils {
 
     public static Element readElementFromString(String toAdd, String namespace) throws JDOMException, IOException {
         SAXBuilder jdomBuilder2 = new SAXBuilder(false);
-        Document doc = jdomBuilder2.build(new StringReader("<just_wrapper_now "+namespace+">" +
+        Document doc = jdomBuilder2.build(new StringReader("<just_wrapper_now " + namespace + ">" +
                 toAdd +
                 "</just_wrapper_now>"));
         Element targetElement = doc.getRootElement().getChildren().stream().findFirst().get();

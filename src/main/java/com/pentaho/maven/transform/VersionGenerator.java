@@ -19,6 +19,7 @@ import java.util.*;
 public class VersionGenerator {
 
     public static final String POM_XML = "pom.xml";
+    public static final String IVY_XML = "ivy.xml";
 
     //<version -> < groupId -> List<Artifact> >
     //Artifact -> Dependency
