@@ -47,8 +47,9 @@ public class MainRunner {
     public static final String DEFAULT_FOLDER = "lib";
     public static final String CLIENT_FOLDER = "client";
     public static final String DESCRIPTOR_FOLDER = "src/main/descriptor";
+    public static final String PMR_FOLDER = "pmr";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
-    public static String[] shimsToProcess = new String[]{"emr310"/*, "cdh58"*/};
+    public static String[] shimsToProcess = new String[]{"hdp24", "hdp25", "cdh58", "cdh59", "mapr410", "mapr510", "emr310", "emr41", "emr46"};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
@@ -119,11 +120,20 @@ public class MainRunner {
         moduleBashExecutor.unArchive(zipArchiveAnt.get(), Paths.get(modulePath.toString(), ANT_TARGET_FOLDER, TEMP_EXTRACT_FOLDER));
         moduleBashExecutor.unArchive(zipArchiveMaven.get(), Paths.get(modulePath.toString(), MAVEN_TARGET_FOLDER, TEMP_EXTRACT_FOLDER));
 
-        Path unArchiveAntFolder = Paths.get(modulePath.toString(), ANT_TARGET_FOLDER, TEMP_EXTRACT_FOLDER, modulePath.getFileName().toString(),
-                DEFAULT_FOLDER, CLIENT_FOLDER);
-        Path unArchiveMavenFolder = Paths.get(modulePath.toString(), MAVEN_TARGET_FOLDER, TEMP_EXTRACT_FOLDER,
-                modulePath.getFileName().toString(), DEFAULT_FOLDER, CLIENT_FOLDER);
-        new DirectoryComparator().compare(unArchiveAntFolder, unArchiveMavenFolder);
+        Path defaultFolderAnt = Paths.get(modulePath.toString(), ANT_TARGET_FOLDER, TEMP_EXTRACT_FOLDER, modulePath.getFileName().toString(),
+                DEFAULT_FOLDER);
+        Path defaultFolderMaven = Paths.get(modulePath.toString(), MAVEN_TARGET_FOLDER, TEMP_EXTRACT_FOLDER,
+                modulePath.getFileName().toString(), DEFAULT_FOLDER);
+        Path clientFolderAnt = Paths.get(defaultFolderAnt.toString(), CLIENT_FOLDER);
+        Path clientFolderMaven = Paths.get(defaultFolderMaven.toString(), CLIENT_FOLDER);
+        Path pmrFolderAnt = Paths.get(defaultFolderAnt.toString(), PMR_FOLDER);
+        Path pmrFolderMaven = Paths.get(defaultFolderMaven.toString(), PMR_FOLDER);
+        System.out.println("---------------compare default folders");
+        new DirectoryComparator().compare(clientFolderAnt, clientFolderMaven);
+        System.out.println("---------------compare client folders");
+        new DirectoryComparator().compare(defaultFolderAnt, defaultFolderMaven);
+        System.out.println("---------------compare pmr folders");
+        new DirectoryComparator().compare(pmrFolderAnt, pmrFolderMaven);
     }
 
     private void runForApiProject(Path modulePath) throws JDOMException, IOException {
@@ -133,28 +143,43 @@ public class MainRunner {
         VersionGenerator.generatePropertyVersionSection(modulePath);
         addParentSection(modulePath);
         removeTransferGoalTarget(modulePath);
+        addToGithub(modulePath);
     }
 
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed {
+        prepareActions(modulePath);
+        PropertyReader propertyReader = new PropertyReader(modulePath);
+        propertyReader.setOssLicenseFalse();
         addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
         XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
         runTransferGoal(modulePath);
-
+//
         addAssemblySectionForShim(modulePath);
         runScriptAssemblyGenerating(modulePath);
 
         moveSourceFolder(modulePath);
-        ShimProperties shimProperties = new PropertyReader(modulePath).readShimProperties();
+
+        ShimProperties shimProperties = propertyReader.readShimProperties();
         addCommonSourceFolderInclusions(modulePath, shimProperties);
+        //addCommonTestSourceFolderInclusions(modulePath, shimProperties);
         addResourceFolders(modulePath, shimProperties);
         VersionGenerator.generatePropertyVersionSection(modulePath);
         addParentSection(modulePath);
 
         moveGenerateAssembly(modulePath);
-//
-//        //cleanup
+
+        //cleanup
         removeTransferGoalTarget(modulePath);
+        addToGithub(modulePath);
         runCompareForShim(modulePath);
+    }
+
+    private void prepareActions(Path modulePath) throws IOException {
+        Path assemblyPath = Paths.get(modulePath.toString(), ASSEMBLY_XML);
+        if (Files.exists(assemblyPath)) {
+            Files.delete(assemblyPath);
+        }
+
     }
 
     private void addParentSection(Path modulePath) throws JDOMException, IOException {
@@ -260,8 +285,27 @@ public class MainRunner {
                         "</plugin>", new ParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
     }
 
+    private void addCommonTestSourceFolderInclusions(Path folder, ShimProperties shimProperties) throws JDOMException, IOException {
+        String pomPath = Paths.get(folder.toString(), "pom.xml").toString();
+        String[] parentNodes = {"build", "plugins"};
+        XmlUtils.addElementToDocumentFile(pomPath,
+                " <plugin>" +
+                        "          <groupId>org.apache.maven.plugins</groupId>" +
+                        "          <artifactId>maven-surefire-plugin</artifactId>" +
+                        "          <configuration>" +
+                        "               <includes>" +
+                        "                   <include>common/test-src/**/*.java</include>\n" +
+                        "                   <include>common/test-src-modern/**/*.java</include>\n" +
+                        "                   <include>common/test-src-hadoop-shim-" + shimProperties.getHadoopVersion() + "/**/*.java</include>" +
+                        "                   <include>common/test-src-hbase-shim-" + shimProperties.getHbaseVersion() + "/**/*.java</include>\n" +
+                        "                   <include>common/test-src-pig-shim-" + shimProperties.getPigVersion() + "/**/*.java</include>\n" +
+                        "               </includes>\n" +
+                        "          </configuration>" +
+                        "</plugin>", new ParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
+    }
+
     private String getHbaseVersion(ShimProperties shimProperties) {
-        return shimProperties.getHbaseGenerationVersion() == null ? "pre-1.0" : shimProperties.getHbaseGenerationVersion();
+        return shimProperties.getHbaseGenerationVersion() == null ? "pre1.0" : shimProperties.getHbaseGenerationVersion();
     }
 
     private void addForSubversionControl(Path folder) throws IOException {
@@ -336,20 +380,21 @@ public class MainRunner {
                 LOG.error("can't create folder, already exists " + e.getMessage());
             }
         }
-        Path mavenSourceFolder = Paths.get(moduleFolder.toString(), sourceFolderArrayMaven[0]);
-        //if (Files.exists(mavenSourceFolder)) {
-        //we created successfully maven source folders
-        if (!revert) {
-            FileUtils.moveFolder(moduleFolder, "test-src", testJavaSubfolder, true);
-            FileUtils.moveFolder(moduleFolder, "src/org", sourceJavaSubfolder, false);
-            FileUtils.moveFolder(moduleFolder, "src/META-INF", resourceJavaSubfolder, false);
-        } else {
-            //revert
-            FileUtils.moveFolder(moduleFolder, testJavaSubfolder, "test-src", true);
-            FileUtils.moveFolder(moduleFolder, sourceJavaSubfolder, "src", true);
-            FileUtils.moveFolder(moduleFolder, resourceJavaSubfolder, "src", true);
-        }
-        //}
+        FileUtils.moveAllInsideFolder(moduleFolder, "test-src", testJavaSubfolder);
+        FileUtils.moveFolder(moduleFolder, "src/org", sourceJavaSubfolder);
+        FileUtils.moveFolder(moduleFolder, "src/META-INF", resourceJavaSubfolder);
+        FileUtils.moveAllInsideFolder(moduleFolder, "package-res", resourceJavaSubfolder);
+    }
+
+
+    private void addToGithub(Path modulePath) throws IOException {
+        moduleBashExecutor.gitAdd(Paths.get(modulePath.toString(), "src/main"));
+        moduleBashExecutor.gitAdd(Paths.get(modulePath.toString(), "src/test"));
+        moduleBashExecutor.gitAdd(Paths.get(modulePath.toString(), "pom.xml"));
+        moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "test-src"));
+        moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "src/org"));
+        moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "src/META-INF"));
+        moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "package-res"));
     }
 
     //function process main folder
