@@ -1,8 +1,6 @@
 package com.pentaho.maven.transform;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Properties;
@@ -13,25 +11,21 @@ import java.util.Properties;
 public class PropertyReader {
 
     private final Path path;
+    private Properties prop;
+    private Path buildPropertyPath;
 
     public PropertyReader(Path folder) {
         this.path = folder;
-    }
-
-    public ShimProperties readShimProperties() {
-        Properties prop = new Properties();
+        this.buildPropertyPath = Paths.get(path.toString(), "build.properties");
+        prop = new Properties();
         InputStream input = null;
 
         try {
 
-            input = new FileInputStream(Paths.get(path.toString(), "build.properties").toString());
+            input = new FileInputStream(buildPropertyPath.toString());
 
             // load a properties file
             prop.load(input);
-
-            // get the property value and print it out
-            return new ShimProperties(prop.getProperty("common.hadoop.shim.version"), prop.getProperty("common.hbase.shim.version"),
-                    prop.getProperty("hbase.generation"), prop.getProperty("common.pig.shim.version"));
         } catch (IOException ex) {
             ex.printStackTrace();
         } finally {
@@ -43,6 +37,17 @@ public class PropertyReader {
                 }
             }
         }
-        return null;
+    }
+
+    public ShimProperties readShimProperties() {
+        return new ShimProperties(prop.getProperty("common.hadoop.shim.version"), prop.getProperty("common.hbase.shim.version"),
+                prop.getProperty("hbase.generation"), prop.getProperty("common.pig.shim.version"));
+    }
+
+    //now some error running assemble goal with oss license not understandable
+    public void setOssLicenseFalse() throws IOException {
+        prop.remove("oss-license.filename");
+        FileOutputStream fileOutputStream = new FileOutputStream(buildPropertyPath.toString());
+        prop.store(fileOutputStream, null);
     }
 }
