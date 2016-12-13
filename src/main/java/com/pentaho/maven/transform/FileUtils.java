@@ -50,4 +50,8 @@ public class FileUtils {
             System.out.println("nothing to be moved " + antTestSourceFolder + " to " + mavenTestSourceFolder);
         }
     }
+
+    public static void removeFile(Path file) throws IOException {
+        Files.delete(file);
+    }
 }

@@ -18,13 +18,10 @@ import java.util.*;
  */
 public class VersionGenerator {
 
-    public static final String POM_XML = "pom.xml";
-    public static final String IVY_XML = "ivy.xml";
-
     //<version -> < groupId -> List<Artifact> >
     //Artifact -> Dependency
     public static void generatePropertyVersionSection(Path folder) throws JDOMException, IOException {
-        String pomPath = Paths.get(folder.toString(), POM_XML).toString();
+        String pomPath = Paths.get(folder.toString(), MainRunner.POM_XML).toString();
         Document documentFromFile = XmlUtils.getDocumentFromFile(pomPath);
         Element rootElement = documentFromFile.getRootElement();
         Optional<Element> properties = rootElement.getContent(new ElementFilter("properties")).stream().findFirst();
@@ -95,7 +92,7 @@ public class VersionGenerator {
             //Element versionElement = rootElement.getContent(new ElementFilter("version")).stream().findFirst().get();
             XmlUtils.addElement(propertiesBuffer.toString(), rootElement, new ElementExistCondition(), new AfterChildInserter("artifactId"), "");
             XmlUtils.updateNameSpaceParent(rootElement, "properties");
-            XmlUtils.outputDoc(documentFromFile, Paths.get(folder.toString(), POM_XML).toString());
+            XmlUtils.outputDoc(documentFromFile, Paths.get(folder.toString(), MainRunner.POM_XML).toString());
         }
     }
 }
