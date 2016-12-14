@@ -81,9 +81,29 @@ public class BashExecutor {
         executeCommand("mvn.cmd clean install");
     }
 
+    public void runMvnDependencyTree(String tmpFile) throws IOException {
+        //todo: according to operating system should be needed file and path, now run on windows
+        executeCommand("mvn.cmd dependency:tree -DoutputFile=" + tmpFile);
+    }
+
     public void runAntCleanAllResolveDist() throws IOException {
         //todo: according to operating system should be needed file and path, now run on windows
         executeCommand("ant.bat clean-all resolve dist");
+    }
+
+    public void runAntCleanAll() throws IOException {
+        //todo: according to operating system should be needed file and path, now run on windows
+        executeCommand("ant.bat clean-all");
+    }
+
+    public void runAntResolveToFile(String tmpFile) throws IOException {
+        //todo: according to operating system should be needed file and path, now run on windows
+        executeCommand("ant.bat resolve > "+ tmpFile);
+    }
+
+    public void runAntDist() throws IOException {
+        //todo: according to operating system should be needed file and path, now run on windows
+        executeCommand("ant.bat dist");
     }
 
     public void unArchive(Path file, Path folderToExtract) throws IOException {
