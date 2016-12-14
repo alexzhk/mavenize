@@ -1,6 +1,7 @@
 package com.pentaho.maven.transform.xml;
 
 import com.pentaho.maven.transform.xml.condition.BaseConditionCheck;
+import com.pentaho.maven.transform.xml.condition.BaseConditionFinder;
 import com.pentaho.maven.transform.xml.insert.BaseInsertOperation;
 import org.jdom2.Document;
 import org.jdom2.Element;
@@ -56,6 +57,16 @@ public class XmlUtils {
         // display nice nice
         xmlOutput.setFormat(Format.getPrettyFormat());
         xmlOutput.output(document, new FileWriter(Paths.get(fullFileName).toString()));
+    }
+
+    public static void deleteElement(String fileName, BaseConditionFinder finder, String xml) throws JDOMException, IOException {
+        Element element = readElementFromString(xml, "");
+        Document documentFromFile = getDocumentFromFile(fileName);
+        Element element1 = finder.find(documentFromFile.getRootElement(), element);
+        if (element1 != null) {
+            element1.getParent().removeContent(element1);
+        }
+        outputDoc(documentFromFile, fileName);
     }
 
     public static Element readElementFromString(String toAdd, String namespace) throws JDOMException, IOException {

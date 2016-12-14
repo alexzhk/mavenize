@@ -4,9 +4,9 @@ import com.pentaho.maven.transform.xml.XmlUtils;
 import com.pentaho.maven.transform.xml.XmlUtilsJDom1;
 import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
 import com.pentaho.maven.transform.xml.condition.ElementWithAttributeCondition;
-import com.pentaho.maven.transform.xml.condition.ParentPathCondition;
+import com.pentaho.maven.transform.xml.condition.ElementWithChildValueInParentPathCondition;
 import com.pentaho.maven.transform.xml.insert.AfterChildInserter;
-import com.pentaho.maven.transform.xml.insert.ToParentInserter;
+import com.pentaho.maven.transform.xml.insert.ToRootNodeInserter;
 import com.pentaho.maven.transform.xml.insert.ToParentPathInserter;
 import org.jdom2.Document;
 import org.jdom2.Element;
@@ -16,10 +16,8 @@ import org.jdom2.filter.ElementFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedInputStream;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
+import java.io.*;
+import java.net.URISyntaxException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,6 +52,9 @@ public class MainRunner {
     public static final String PMR_FOLDER = "pmr";
     public static final String POM_XML = "pom.xml";
     public static final String IVY_XML = "ivy.xml";
+    public static final String IVY_SETTINGS_XML = "ivysettings.xml";
+    public static final String PACKAGE_IVY_XML = "package-ivy.xml";
+    public static final String PACKAGE_POM_XML = "package-pom.xml";
     public static final String JAR_ARTIFACT_DIRECTORY = "jar";
     public static final String ASSEMBLY_ARTIFACT_DIRECTORY = "assembly";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources", "src/main/descriptor"};
@@ -91,7 +92,8 @@ public class MainRunner {
 
     public void moveShimsToMaven() throws IOException {
         List<String> shimList = Arrays.asList(shimsToProcess);
-        try (Stream<Path> paths = Files.list(Paths.get(folder))) {
+        Path folder = Paths.get(this.folder);
+        try (Stream<Path> paths = Files.list(folder)) {
             paths.forEach(filePath -> {
                 if (Files.isDirectory(filePath)) {
                     //we are in the directory
@@ -109,8 +111,10 @@ public class MainRunner {
                         try {
                             LOG.info("shim " + shortFileName + " started");
                             runForShim(filePath);
+//                            parseAndSavePom("pom_shim_assembly_template.xml", filePath.getFileName().toString(), filePath);
+//                            parseAndSavePom("pom_shim_reactor_template.xml", filePath.getFileName().toString(), filePath);
                             LOG.info("shim " + shortFileName + " finished successfully");
-                        } catch (IOException | JDOMException | ShimCannotBeProcessed e) {
+                        } catch (IOException | URISyntaxException | JDOMException | ShimCannotBeProcessed e) {
                             e.printStackTrace();
                             LOG.error("Shim can't be processed " + e.getMessage());
                         }
@@ -118,6 +122,7 @@ public class MainRunner {
                 }
             });
         }
+        removeMainFolder(folder);
     }
 
     private void runCompareForShim(Path modulePath) throws IOException {
@@ -153,92 +158,87 @@ public class MainRunner {
         addParentSection(modulePath);
         removeTransferGoalTarget(modulePath);
         addToGithub(modulePath);
+        removeAntFiles(modulePath);
     }
 
-    private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed {
-
-        createStructureShim(modulePath);
-        //move assembly to assembly artifact
-        Path assemblyDirectory = Paths.get(modulePath.toString(), ASSEMBLY_ARTIFACT_DIRECTORY);
-        moveGenerateAssembly(Paths.get(modulePath.toString(), DESCRIPTOR_FOLDER, ASSEMBLY_XML), assemblyDirectory);
-
-        //move pom to jar artifact
-        Path jarDirectory = Paths.get(modulePath.toString(), JAR_ARTIFACT_DIRECTORY);
-        FileUtils.moveFile(Paths.get(modulePath.toString(), POM_XML), Paths.get(jarDirectory.toString(), POM_XML));
-
-        //create pom for cdh57 reactor project - some pom prepared - some vars
-
-
-        //temp run
-        Path folderWithPreviousSourceFolder = Paths.get("d:\\1\\BAD-570_3\\pentaho-hadoop-shims\\");
-        moveSourceFolder(Paths.get(folderWithPreviousSourceFolder.toString(), modulePath.getFileName().toString()), jarDirectory);
-        movePackageRes(Paths.get(folderWithPreviousSourceFolder.toString(), modulePath.getFileName().toString()), assemblyDirectory);
-        Path srcFolder = Paths.get(modulePath.toString(), "src");
-        FileUtils.removeFile(srcFolder);
-        moduleBashExecutor.gitRemove(srcFolder);
-        //here remove assembly section from pom in jar artifact - make function to find by condition, remove
-
-        //create pom file assembly from some template constant with parent to cdh57 - velocity parsing or replace some vars
-    }
-
-    private void parseAndSavePom(String pomNameInResources, Path whereSave) throws FileNotFoundException {
-        FileInputStream fileInputStream = new FileInputStream(getClass().getResource(pomNameInResources).getFile());
+    private void parseAndSavePom(String pomNameInResources, String moduleName, Path whereSave) throws IOException, URISyntaxException {
+        String pom = new String(Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource(pomNameInResources).toURI())));
+        FileOutputStream fileOutputStream = new FileOutputStream(Paths.get(whereSave.toString(), POM_XML).toString());
+        fileOutputStream.write(pom.replace("${shim_name}", moduleName).getBytes());
+        fileOutputStream.close();
         //new BufferedInputStream()
     }
 
-    private void createStructureShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed {
+    private void createStructureShim(Path modulePath, Path folderWithPreviousSourceFolder) throws JDOMException, IOException, ShimCannotBeProcessed {
         Path jarDirectory = Paths.get(modulePath.toString(), JAR_ARTIFACT_DIRECTORY);
-        moveSourceFolder(modulePath, jarDirectory);
-        Files.createDirectory(jarDirectory);
+        moveSourceFolder(Paths.get(folderWithPreviousSourceFolder.toString(), modulePath.getFileName().toString()), jarDirectory);
         Path assemblyDirectory = Paths.get(modulePath.toString(), ASSEMBLY_ARTIFACT_DIRECTORY);
-        movePackageRes(modulePath, assemblyDirectory);
-        Files.createDirectory(assemblyDirectory);
+        if (!Files.exists(jarDirectory)) {
+            Files.createDirectory(jarDirectory);
+        }
+        movePackageRes(Paths.get(folderWithPreviousSourceFolder.toString(), modulePath.getFileName().toString()), assemblyDirectory);
+        if (!Files.exists(assemblyDirectory)) {
+            Files.createDirectory(assemblyDirectory);
+        }
+        createSourceDirectories(assemblyDirectory);
     }
 
-    private void runForShim2(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed {
-        //mkdir jar
-            //move sources to jar only -
-            //add pom there
-        //mkdir assembly
-            //add pom with only dependency to jar and assembly section
-            //add assembly only here
-            //package-res (now can take another folder not to run script) -> resources - issue now with that
-
-        //delete all ant files for every shim
-        //delete all ant files in root
-
-
-
-        //for now - should work
-        //move
-
+    private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed, URISyntaxException {
         prepareActions(modulePath);
         PropertyReader propertyReader = new PropertyReader(modulePath);
         propertyReader.setOssLicenseFalse();
         addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
         XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
         runTransferGoal(modulePath);
-//
+
         addAssemblySectionForShim(modulePath);
         runScriptAssemblyGenerating(modulePath);
 
-        moveSourceFolder(modulePath, modulePath);
-        movePackageRes(modulePath, modulePath);
+        createStructureShim(modulePath, modulePath);
+        //move assembly to assembly artifact
+        Path assemblyDirectory = Paths.get(modulePath.toString(), ASSEMBLY_ARTIFACT_DIRECTORY);
+
+        moveGenerateAssembly(Paths.get(modulePath.toString(), DESCRIPTOR_FOLDER), assemblyDirectory);
+        Path jarDirectory = Paths.get(modulePath.toString(), JAR_ARTIFACT_DIRECTORY);
+        movePomToJarArtifact(modulePath, jarDirectory);
+
+        //create pom for cdh57 reactor project - some pom prepared - some vars
+        parseAndSavePom("pom_shim_reactor_template.xml", modulePath.getFileName().toString(), modulePath);
+
+        //here remove assembly section from pom in jar artifact - make function to find by condition, remove
+        XmlUtils.deleteElement(Paths.get(jarDirectory.toString(), POM_XML).toString(), new ElementWithChildValueInParentPathCondition(new String[]{"build", "plugins"}, "artifactId"), Constants.ASSEMBLY_PLUGIN);
+
+        //create pom file assembly from some template constant with parent to cdh57 - velocity parsing or replace some vars
+        parseAndSavePom("pom_shim_assembly_template.xml", modulePath.getFileName().toString(), assemblyDirectory);
+
+        //add structure to git
+        addToGithub(jarDirectory);
+        addToGithub(assemblyDirectory);
+        moveSourceFolder(modulePath, jarDirectory);
+        movePackageRes(modulePath, assemblyDirectory);
 
         ShimProperties shimProperties = propertyReader.readShimProperties();
-        addCommonSourceFolderInclusions(modulePath, shimProperties);
+        addCommonSourceFolderInclusions(jarDirectory, shimProperties);
         //addCommonTestSourceFolderInclusions(modulePath, shimProperties);
-        addResourceFolders(modulePath, shimProperties);
-        VersionGenerator.generatePropertyVersionSection(modulePath);
-        addParentSection(modulePath);
-
-        moveGenerateAssembly(modulePath, modulePath);
+        addResourceFolders(assemblyDirectory, shimProperties);
+        VersionGenerator.generatePropertyVersionSection(jarDirectory);
+        addParentSection(assemblyDirectory);
+        addParentSection(jarDirectory);
 
         //cleanup
         removeTransferGoalTarget(modulePath);
         addToGithub(modulePath);
-        //removeAntFiles(modulePath);
+        removeShim(modulePath);
         runCompareForShim(modulePath);
+    }
+
+    private Path movePomToJarArtifact(Path modulePath, Path jarDirectory) throws IOException {
+        //move pom to jar artifact
+        Path targetPomPath = Paths.get(jarDirectory.toString(), POM_XML);
+        if (!Files.exists(targetPomPath)) {
+            FileUtils.moveFile(Paths.get(modulePath.toString(), POM_XML), targetPomPath);
+        }
+        return jarDirectory;
     }
 
     private void removeAntFiles(Path modulePath) throws IOException {
@@ -251,6 +251,29 @@ public class MainRunner {
         Path buildPropertiesFile = Paths.get(modulePath.toString(), BUILD_PROPERTIES);
         FileUtils.removeFile(buildPropertiesFile);
         moduleBashExecutor.gitRemove(buildPropertiesFile);
+        Path ivySettingsXml = Paths.get(modulePath.toString(), IVY_SETTINGS_XML);
+        FileUtils.removeFile(ivySettingsXml);
+        moduleBashExecutor.gitRemove(ivySettingsXml);
+        Path packageIvyXml = Paths.get(modulePath.toString(), PACKAGE_IVY_XML);
+        FileUtils.removeFile(packageIvyXml);
+        moduleBashExecutor.gitRemove(packageIvyXml);
+        Path packagePomXml = Paths.get(modulePath.toString(), PACKAGE_POM_XML);
+        FileUtils.removeFile(packagePomXml);
+        moduleBashExecutor.gitRemove(packagePomXml);
+    }
+
+    private void removeShim(Path modulePath) throws IOException {
+        removeAntFiles(modulePath);
+        Path srcFolder = Paths.get(modulePath.toString(), "src");
+        FileUtils.removeFile(srcFolder);
+        moduleBashExecutor.gitRemove(srcFolder);
+    }
+
+    private void removeMainFolder(Path modulePath) throws IOException {
+        removeAntFiles(modulePath);
+        Path commonShimBuildXml = Paths.get(modulePath.toString(), "common-shims-build.xml");
+        FileUtils.removeFile(commonShimBuildXml);
+        moduleBashExecutor.gitRemove(commonShimBuildXml);
     }
 
     private void prepareActions(Path modulePath) throws IOException {
@@ -274,18 +297,20 @@ public class MainRunner {
         rootFolderExecutor.executeCommand("\"C:\\Program Files\\Git\\git-bash.exe\" .\\main.sh " + shimName);
     }
 
-    private void moveGenerateAssembly(Path modulePath, Path where) throws ShimCannotBeProcessed, IOException {
-        Path desriptorFolder = Paths.get(modulePath.toString(), DESCRIPTOR_FOLDER);
-        Path fullAssemblyPath = Paths.get(modulePath.toString(), ASSEMBLY_XML);
+    private void moveGenerateAssembly(Path desriptorFolder, Path where) throws ShimCannotBeProcessed, IOException {
+        Path fullAssemblyPath = Paths.get(desriptorFolder.toString(), ASSEMBLY_XML);
+        Path targetDescriptorFolder = Paths.get(where.toString(), DESCRIPTOR_FOLDER);
         Path neededFullAssemblyPath = Paths.get(where.toString(), DESCRIPTOR_FOLDER, ASSEMBLY_XML);
         if (!Files.exists(fullAssemblyPath)) {
             String msg = "no assembly generated by some reasons";
             LOG.error(msg);
             // throw new ShimCannotBeProcessed(msg);
         }
-        if (!Files.exists(desriptorFolder)) {
-            Files.createDirectory(desriptorFolder);
+        if (!Files.exists(targetDescriptorFolder)) {
+            Files.createDirectory(targetDescriptorFolder);
         }
+        System.out.println(fullAssemblyPath);
+        System.out.println(neededFullAssemblyPath);
         FileUtils.moveFileReplace(fullAssemblyPath, neededFullAssemblyPath);
         rootFolderExecutor.gitAdd(neededFullAssemblyPath);
     }
@@ -335,7 +360,7 @@ public class MainRunner {
                             "          <include>**/*.properties</include>\n" +
                             "        </includes>\n" +
                             "      </resource>\n" +
-                            "    </resources>", rootElement, new ParentPathCondition(parentNodes), new ToParentPathInserter(parentNodes), "");
+                            "    </resources>", rootElement, new ElementWithChildValueInParentPathCondition(parentNodes), new ToParentPathInserter(parentNodes), "");
             XmlUtils.outputDoc(documentFromFile, pomPath);
         }
     }
@@ -361,7 +386,7 @@ public class MainRunner {
                         "                   <include>" + folder.getFileName() + "/src/main/java/**/*.java</include>" +
                         "               </includes>\n" +
                         "          </configuration>" +
-                        "</plugin>", new ParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
+                        "</plugin>", new ElementWithChildValueInParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
     }
 
     private void addCommonTestSourceFolderInclusions(Path folder, ShimProperties shimProperties) throws JDOMException, IOException {
@@ -380,7 +405,7 @@ public class MainRunner {
                         "                   <include>common/test-src-pig-shim-" + shimProperties.getPigVersion() + "/**/*.java</include>\n" +
                         "               </includes>\n" +
                         "          </configuration>" +
-                        "</plugin>", new ParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
+                        "</plugin>", new ElementWithChildValueInParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
     }
 
     private String getHbaseVersion(ShimProperties shimProperties) {
@@ -410,7 +435,7 @@ public class MainRunner {
             buildElement.addContent(new Element("plugins", parentNamespace));
         }
         String[] parentNodes = {"build", "plugins"};
-        XmlUtils.addElement(Constants.ASSEMBLY_PLUGIN, rootElement, new ParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
+        XmlUtils.addElement(Constants.ASSEMBLY_PLUGIN, rootElement, new ElementWithChildValueInParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
         XmlUtils.outputDoc(documentFromFile, pomPath);
     }
 
@@ -422,7 +447,7 @@ public class MainRunner {
     private void addTransferGoalForAnt(String folder, String shortFileName) throws JDOMException, IOException {
         String fullName = Paths.get(folder, shortFileName).toString();
         LOG.debug("build.xml at: " + fullName);
-        XmlUtils.addElementToDocumentFile(fullName, Constants.MAKEPOM_TARGET, new ElementWithAttributeCondition("name"), new ToParentInserter(), "xmlns:ivy=\"antlib:org.apache.ivy.ant\"");
+        XmlUtils.addElementToDocumentFile(fullName, Constants.MAKEPOM_TARGET, new ElementWithAttributeCondition("name"), new ToRootNodeInserter(), "xmlns:ivy=\"antlib:org.apache.ivy.ant\"");
     }
 
     private void removeTransferGoalTarget(Path filePath) throws JDOMException, IOException {
@@ -448,9 +473,9 @@ public class MainRunner {
         XmlUtils.outputDoc(document, fullName);
     }
 
-    public void moveSourceFolder(Path moduleFolder, Path where) throws IOException {
+    public void createSourceDirectories(Path where) throws IOException {
         for (String sourceFolder : sourceFolderArrayMaven) {
-            Path mavenSourceFolder = Paths.get(moduleFolder.toString(), sourceFolder);
+            Path mavenSourceFolder = Paths.get(where.toString(), sourceFolder);
             try {
                 Files.createDirectories(mavenSourceFolder);
                 rootFolderExecutor.gitAdd(mavenSourceFolder);
@@ -459,13 +484,20 @@ public class MainRunner {
                 LOG.error("can't create folder, already exists " + e.getMessage());
             }
         }
-        FileUtils.moveAllInsideFolder(moduleFolder, "test-src", Paths.get(where.toString(), testJavaSubfolder).toString());
-        FileUtils.moveFolder(moduleFolder, "src/org", Paths.get(where.toString(), sourceJavaSubfolder).toString());
-        FileUtils.moveFolder(moduleFolder, "src/META-INF", Paths.get(where.toString(), resourceJavaSubfolder).toString());
+    }
+
+    public void moveSourceFolder(Path moduleFolder, Path where) throws IOException {
+        createSourceDirectories(where);
+        FileUtils.moveAllInsideFolder(moduleFolder, "test-src", Paths.get(where.toString(), testJavaSubfolder));
+        System.out.println(moduleFolder);
+        System.out.println(Paths.get(where.toString(), sourceJavaSubfolder).toString());
+        FileUtils.moveFolder(moduleFolder, "src/org", where, sourceJavaSubfolder);
+        FileUtils.moveFolder(moduleFolder, "src/META-INF", where, resourceJavaSubfolder);
     }
 
     public void movePackageRes(Path moduleFolder, Path where) throws IOException {
-        FileUtils.moveAllInsideFolder(moduleFolder, "package-res", Paths.get(where.toString(), resourceJavaSubfolder).toString());
+        System.out.println("package-res " + moduleFolder);
+        FileUtils.moveAllInsideFolder(moduleFolder, "package-res", Paths.get(where.toString(), resourceJavaSubfolder));
     }
 
 

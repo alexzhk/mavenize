@@ -6,9 +6,9 @@ import org.jdom2.filter.ElementFilter;
 /**
  * Created by Vasilina_Terehova on 12/9/2016.
  */
-public class ToParentInserter implements BaseInsertOperation {
+public class ToRootNodeInserter implements BaseInsertOperation {
 
-    public ToParentInserter() {
+    public ToRootNodeInserter() {
     }
 
     @Override

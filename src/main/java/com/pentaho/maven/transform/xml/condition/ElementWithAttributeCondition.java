@@ -9,7 +9,7 @@ import java.util.Optional;
 /**
  * Created by Vasilina_Terehova on 12/9/2016.
  */
-public class ElementWithAttributeCondition implements BaseConditionCheck {
+public class ElementWithAttributeCondition implements BaseConditionCheck, BaseConditionFinder {
     private String attributeName;
 
     public ElementWithAttributeCondition(String attributeName) {
@@ -18,15 +18,20 @@ public class ElementWithAttributeCondition implements BaseConditionCheck {
 
     @Override
     public boolean isValid(Element rootNode, Element element) {
+        return find(rootNode, element) == null;
+    }
+
+    @Override
+    public Element find(Element rootNode, Element element) {
         List<Element> children = rootNode.getContent(new ElementFilter(element.getName()));
         if (children.size() == 0) {
-            return true;
+            return null;
         }
         for (Element child : children) {
             if (child.getAttribute(attributeName).getValue().equals(element.getAttributeValue(attributeName))) {
-                return false;
+                return child;
             }
         }
-        return true;
+        return null;
     }
 }

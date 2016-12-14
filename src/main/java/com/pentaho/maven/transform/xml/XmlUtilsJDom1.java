@@ -1,5 +1,6 @@
 package com.pentaho.maven.transform.xml;
 
+import com.pentaho.maven.transform.MainRunner;
 import com.pentaho.maven.transform.ShimCannotBeProcessed;
 import com.pentaho.maven.transform.VersionGenerator;
 import org.jdom.*;
@@ -94,7 +95,7 @@ public class XmlUtilsJDom1 {
     }
 
     public static void fixIvyWithClassifier(Path modulePath) throws IOException, ShimCannotBeProcessed {
-        String ivyFile = Paths.get(modulePath.toString(), VersionGenerator.IVY_XML).toString();
+        String ivyFile = Paths.get(modulePath.toString(), MainRunner.IVY_XML).toString();
         Document documentFromFile = null;
         try {
             documentFromFile = XmlUtilsJDom1.getDocumentFromFile(ivyFile);
