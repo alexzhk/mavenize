@@ -2,6 +2,7 @@ package com.pentaho.maven.transform;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.stream.Stream;
 
 /**
@@ -53,5 +54,46 @@ public class FileUtils {
 
     public static void removeFile(Path file) throws IOException {
         Files.delete(file);
+    }
+
+    public static void createFolder(Path folder) throws IOException {
+
+        if (!Files.exists(folder)) {
+            Files.createDirectory(folder);
+        }
+    }
+
+    public static void createFolders(Path folders) throws IOException {
+
+        Files.createDirectories(folders);
+    }
+
+    public static void deleteEmptyFolder(Path folder) throws IOException {
+
+        Files.deleteIfExists(folder);
+
+    }
+
+    public static void deleteFolderWithFiles(Path directory) throws IOException {
+
+        if (Files.exists(directory)) {
+
+            Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    Files.delete(file);
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+                    Files.delete(dir);
+                    return FileVisitResult.CONTINUE;
+                }
+
+            });
+        }
+
     }
 }

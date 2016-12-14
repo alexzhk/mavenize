@@ -56,12 +56,13 @@ public class MainRunner {
     public static final String IVY_XML = "ivy.xml";
     public static final String JAR_ARTIFACT_DIRECTORY = "jar";
     public static final String ASSEMBLY_ARTIFACT_DIRECTORY = "assembly";
-    public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
+    public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources", "src/main/descriptor"};
     public static String[] shimsToProcess = new String[]{"hdp24", "hdp25", "cdh58", "cdh59", "mapr410", "mapr510", "emr310", "emr41", "emr46"};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
     public static String testResourceJavaSubfolder = sourceFolderArrayMaven[3];
+    public static String descriptorJavaSubfolder = sourceFolderArrayMaven[4];
 
     BashExecutor rootFolderExecutor;
     BashExecutor moduleBashExecutor;
