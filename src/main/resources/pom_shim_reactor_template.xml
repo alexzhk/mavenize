@@ -9,8 +9,7 @@
     <version>7.1-SNAPSHOT</version>
   </parent>
 
-  <groupId>pentaho</groupId>
-  <artifactId>pentaho-hadoop-shims-${shim_name}-reactor</artifactId>
+  <artifactId>pentaho-hadoop-shims-${module_name}-reactor</artifactId>
   <packaging>pom</packaging>
 
   <modules>

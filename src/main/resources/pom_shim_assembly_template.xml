@@ -5,17 +5,17 @@
 
   <parent>
     <groupId>org.pentaho</groupId>
-    <artifactId>pentaho-hadoop-shims-${shim_name}-reactor</artifactId>
+    <artifactId>pentaho-hadoop-shims-${module_name}-reactor</artifactId>
     <version>7.1-SNAPSHOT</version>
   </parent>
 
-  <groupId>pentaho</groupId>
-  <artifactId>pentaho-hadoop-shims-${shim_name}-assembly</artifactId>
+  <artifactId>pentaho-hadoop-shims-${module_name}-assembly</artifactId>
 
   <dependencies>
     <dependency>
       <groupId>org.pentaho</groupId>
-      <artifactId>pentaho-hadoop-shims-${shim_name}</artifactId>
+      <artifactId>pentaho-hadoop-shims-${module_name}</artifactId>
+      <version>7.1-SNAPSHOT</version>
     </dependency>
   </dependencies>
 

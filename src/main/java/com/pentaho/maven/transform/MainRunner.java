@@ -57,13 +57,13 @@ public class MainRunner {
     public static final String PACKAGE_POM_XML = "package-pom.xml";
     public static final String JAR_ARTIFACT_DIRECTORY = "jar";
     public static final String ASSEMBLY_ARTIFACT_DIRECTORY = "assembly";
-    public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources", "src/main/descriptor"};
-    public static String[] shimsToProcess = new String[]{"hdp24", "hdp25", "cdh58", "cdh59", "mapr410", "mapr510", "emr310", "emr41", "emr46"};
+    public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
+    public static String[] shimsToProcess = new String[]{/*"hdp24",*/ "hdp25"/*, "cdh58", "cdh59", "mapr410", "mapr510", "emr310", "emr41", "emr46"*/};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
     public static String testResourceJavaSubfolder = sourceFolderArrayMaven[3];
-    public static String descriptorJavaSubfolder = sourceFolderArrayMaven[4];
+    public static String descriptorJavaSubfolder = "src/main/descriptor";
 
     BashExecutor rootFolderExecutor;
     BashExecutor moduleBashExecutor;
@@ -111,8 +111,6 @@ public class MainRunner {
                         try {
                             LOG.info("shim " + shortFileName + " started");
                             runForShim(filePath);
-//                            parseAndSavePom("pom_shim_assembly_template.xml", filePath.getFileName().toString(), filePath);
-//                            parseAndSavePom("pom_shim_reactor_template.xml", filePath.getFileName().toString(), filePath);
                             LOG.info("shim " + shortFileName + " finished successfully");
                         } catch (IOException | URISyntaxException | JDOMException | ShimCannotBeProcessed e) {
                             e.printStackTrace();
@@ -122,7 +120,42 @@ public class MainRunner {
                 }
             });
         }
+        try {
+            moveCommonSourceFolders(folder);
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
         removeMainFolder(folder);
+    }
+
+    private void moveCommonSourceFolders(Path folder) throws IOException, URISyntaxException {
+        Path commonFolder = Paths.get(folder.toString(), "common");
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "common-shim"), "shim", "src", "test-src");
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "modern"), "modern", "src-modern", "test-src-modern");
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "mapred"), "mapred", "src-mapred", null);
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "hadoop-shim-1.0"), "hadoop-shim-1.0", "src-hadoop-shim-1.0", null);
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "hbase-1.0"), "hbase-1.0", "src-hbase-1.0", null);
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "hbase-pre1.0"), "hbase-pre1.0", "src-hbase-pre1.0", null);
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "hbase-shim-1.0"), "hbase-shim-1.0", "src-hbase-shim-1.0", "test-src-hbase-shim-1.0");
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "hbase-shim-1.1"), "hbase-shim-1.1", "src-hbase-shim-1.1", "test-src-hbase-shim-1.1");
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "pig-shim-1.0"), "pig-shim-1.0", "src-pig-shim-1.0", null);
+        moveCommonSourceFolder(commonFolder, Paths.get(commonFolder.toString(), "pig-shim-1.1"), "pig-shim-1.1", "src-pig-shim-1.1", null);
+    }
+
+    public void moveCommonSourceFolder(Path commonFolder, Path newModuleFolder, String moduleName, String srcPath, String testPath) throws IOException, URISyntaxException {
+           moduleBashExecutor = new BashExecutor(commonFolder);
+        if (!Files.exists(newModuleFolder)) {
+            Files.createDirectory(newModuleFolder);
+        }
+        createSourceDirectories(newModuleFolder);
+        FileUtils.moveFolder(commonFolder, srcPath + "/org", newModuleFolder, sourceJavaSubfolder);
+        FileUtils.moveFolder(commonFolder, srcPath + "/META-INF", newModuleFolder, resourceJavaSubfolder);
+        if (testPath != null) {
+            FileUtils.moveAllInsideFolder(commonFolder, testPath, Paths.get(newModuleFolder.toString(), testJavaSubfolder));
+        }
+        parseAndSavePom("pom_common_folder_artefact_template.xml", moduleName, newModuleFolder);
+        addToGithub(newModuleFolder);
+        removeGithubCommonSource(commonFolder, srcPath, testPath);
     }
 
     private void runCompareForShim(Path modulePath) throws IOException {
@@ -158,13 +191,14 @@ public class MainRunner {
         addParentSection(modulePath);
         removeTransferGoalTarget(modulePath);
         addToGithub(modulePath);
+        removeGithub(modulePath);
         removeAntFiles(modulePath);
     }
 
     private void parseAndSavePom(String pomNameInResources, String moduleName, Path whereSave) throws IOException, URISyntaxException {
         String pom = new String(Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource(pomNameInResources).toURI())));
         FileOutputStream fileOutputStream = new FileOutputStream(Paths.get(whereSave.toString(), POM_XML).toString());
-        fileOutputStream.write(pom.replace("${shim_name}", moduleName).getBytes());
+        fileOutputStream.write(pom.replace("${module_name}", moduleName).getBytes());
         fileOutputStream.close();
         //new BufferedInputStream()
     }
@@ -213,7 +247,9 @@ public class MainRunner {
 
         //add structure to git
         addToGithub(jarDirectory);
+        removeGithub(modulePath);
         addToGithub(assemblyDirectory);
+        removeGithub(assemblyDirectory);
         moveSourceFolder(modulePath, jarDirectory);
         movePackageRes(modulePath, assemblyDirectory);
 
@@ -228,6 +264,7 @@ public class MainRunner {
         //cleanup
         removeTransferGoalTarget(modulePath);
         addToGithub(modulePath);
+        removeGithub(modulePath);
         removeShim(modulePath);
         runCompareForShim(modulePath);
     }
@@ -505,10 +542,21 @@ public class MainRunner {
         moduleBashExecutor.gitAdd(Paths.get(modulePath.toString(), "src/main"));
         moduleBashExecutor.gitAdd(Paths.get(modulePath.toString(), "src/test"));
         moduleBashExecutor.gitAdd(Paths.get(modulePath.toString(), "pom.xml"));
+    }
+
+    private void removeGithub(Path modulePath) throws IOException {
         moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "test-src"));
         moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "src/org"));
         moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "src/META-INF"));
         moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "package-res"));
+
+    }
+    private void removeGithubCommonSource(Path modulePath, String src, String testSrc) throws IOException {
+        if (testSrc != null) {
+            moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), testSrc));
+        }
+        moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), src));
+
     }
 
     //function process main folder
