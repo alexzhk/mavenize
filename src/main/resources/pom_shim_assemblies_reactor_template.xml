@@ -9,11 +9,10 @@
     <version>7.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pentaho-hadoop-shims-${module_name}-reactor</artifactId>
+  <artifactId>pentaho-hadoop-shims-${module_name}-assemblies-reactor</artifactId>
   <packaging>pom</packaging>
 
   <modules>
-    <module>impl</module>
-    <module>assemblies</module>
+    <module>assembly</module>
   </modules>
 </project>
