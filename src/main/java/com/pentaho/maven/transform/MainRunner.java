@@ -1,5 +1,6 @@
 package com.pentaho.maven.transform;
 
+import com.pentaho.maven.transform.assembly.AssemblyGenerator;
 import com.pentaho.maven.transform.xml.XmlUtils;
 import com.pentaho.maven.transform.xml.XmlUtilsJDom1;
 import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
@@ -57,6 +58,7 @@ public class MainRunner {
     public static final String PACKAGE_POM_XML = "package-pom.xml";
     public static final String JAR_ARTIFACT_DIRECTORY = "jar";
     public static final String ASSEMBLY_ARTIFACT_DIRECTORY = "assembly";
+    public static final String DEFAULT_SCOPE = "compile";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
     public static String[] shimsToProcess = new String[]{/*"hdp24",*/ "hdp25"/*, "cdh58", "cdh59", "mapr410", "mapr510", "emr310", "emr41", "emr46"*/};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
@@ -226,7 +228,10 @@ public class MainRunner {
         runTransferGoal(modulePath);
 
         addAssemblySectionForShim(modulePath);
-        runScriptAssemblyGenerating(modulePath);
+        //runScriptAssemblyGenerating(modulePath);
+
+        AssemblyGenerator assembly = new AssemblyGenerator(modulePath);
+        assembly.createTrees();
 
         createStructureShim(modulePath, modulePath);
         //move assembly to assembly artifact

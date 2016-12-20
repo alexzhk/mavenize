@@ -18,6 +18,17 @@ public class MavenTreeGenerator implements TreeGenerator {
 
     public static final String TEMP_MAVEN_TREE_TXT = "temptree.txt";
 
+    private List mavenDirtyTree;
+    private List mavenTree;
+
+    public List getMavenDirtyTree() {
+        return mavenDirtyTree;
+    }
+
+    public List getMavenTree() {
+        return mavenTree;
+    }
+
     @Override
     public void createTree(Path shim) throws IOException {
         BashExecutor moduleBashExecutor = new BashExecutor(shim);
@@ -27,31 +38,26 @@ public class MavenTreeGenerator implements TreeGenerator {
 
     }
 
-    private List getArtifactsFromMavenTree(Path shim) throws IOException {
+    private void getArtifactsFromMavenTree(List<String> artifacts) {
 
-        Pattern pattern;
-        Matcher matcher;
+        String[] tempArr;
+        mavenTree = new ArrayList<>();
 
-        List<String> mavenTreeList = new ArrayList<>();
-
-        //pattern = Pattern.compile(".*found.*");
-        //matcher = pattern.matcher("");
-
-        Path tempMavenTreeFile = Paths.get(shim.toString(), TEMP_MAVEN_TREE_TXT);
-
-        List<String> list = Files.readAllLines(tempMavenTreeFile);
-
-        for (String s : list) {
-
-           // if (matcher.reset(s).matches()) {
-                //System.out.println(s.split("\\s")[3].replace(";", "#"));
-                mavenTreeList.add(s.split("\\s")[s.length() - 1]);
-           // }
+        for (String s : artifacts) {
+            tempArr = s.split("\\s");
+            mavenTree.add(tempArr[tempArr.length - 1]);
         }
 
-        Files.deleteIfExists(tempMavenTreeFile);
-
-        return mavenTreeList;
     }
 
+    private void getArtifactsFromMavenTree(Path shim) throws IOException {
+
+        Path tempMavenTreeFile = Paths.get(shim.toString(), TEMP_MAVEN_TREE_TXT);
+        mavenDirtyTree = Files.readAllLines(tempMavenTreeFile);
+        Files.deleteIfExists(tempMavenTreeFile);
+
+        getArtifactsFromMavenTree(mavenDirtyTree);
+
+    }
+    
 }

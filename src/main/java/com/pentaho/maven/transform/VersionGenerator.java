@@ -18,6 +18,8 @@ import java.util.*;
  */
 public class VersionGenerator {
 
+    public static final String IVY_XML = "ivy.xml";
+
     //<version -> < groupId -> List<Artifact> >
     //Artifact -> Dependency
     public static void generatePropertyVersionSection(Path folder) throws JDOMException, IOException {
@@ -35,7 +37,8 @@ public class VersionGenerator {
                 Map<String, List<Artifact>> map = versions.get(version) == null ? new HashMap<>() : versions.get(version);
                 String classifier = XmlUtils.getTagValue(element, "classifier");
                 String groupId1 = XmlUtils.getTagValue(element, "groupId");
-                Artifact artifact = new Artifact(groupId1, XmlUtils.getTagValue(element, "artifactId"), version, classifier);
+                String scope = XmlUtils.getTagValue(element, "scope");
+                Artifact artifact = new Artifact(groupId1, XmlUtils.getTagValue(element, "artifactId"), version, classifier, scope);
                 artifactElementMap.put(artifact, element);
                 boolean groupFound = false;
                 if (map.isEmpty()) {
