@@ -274,10 +274,16 @@ public class AntArchiveFolderComparator {
 
     public void compareFolderWithArtifactNames() throws IOException {
 
+        Path archFolder = Paths.get(folder.toString(), shim, MainRunner.ANT_TARGET_FOLDER, shim, MainRunner.DEFAULT_FOLDER, MainRunner.CLIENT_FOLDER);
+
         compareFolderWithTree(MainRunner.DEFAULT_FOLDER);
-        compareFolderWithTree(MainRunner.DEFAULT_FOLDER + "\\" + MainRunner.CLIENT_FOLDER);
+
+        if (Files.exists(archFolder)){
+            compareFolderWithTree(MainRunner.DEFAULT_FOLDER + "\\" + MainRunner.CLIENT_FOLDER);
+        }
+
         compareFolderWithTree(MainRunner.DEFAULT_FOLDER + "\\" + MainRunner.PMR_FOLDER);
 
     }
-    
+
 }
