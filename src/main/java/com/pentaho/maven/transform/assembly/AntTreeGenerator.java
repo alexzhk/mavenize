@@ -18,6 +18,12 @@ public class AntTreeGenerator implements TreeGenerator {
 
     public static final String TEMP_ANT_TREE_TXT = "temptree.txt";
 
+    private List antTreeList = new ArrayList<>();
+
+    public List getAntTreeList() {
+        return antTreeList;
+    }
+
     @Override
     public void createTree(Path shim) throws IOException {
         BashExecutor moduleBashExecutor = new BashExecutor(shim);
@@ -28,12 +34,10 @@ public class AntTreeGenerator implements TreeGenerator {
 
     }
 
-    private List getArtifactsFromAntTree(Path shim) throws IOException {
+    private void getArtifactsFromAntTree(Path shim) throws IOException {
 
         Pattern pattern;
         Matcher matcher;
-
-        List<String> antTreeList = new ArrayList<>();
 
         pattern = Pattern.compile(".*found.*");
         matcher = pattern.matcher("");
@@ -45,14 +49,12 @@ public class AntTreeGenerator implements TreeGenerator {
         for (String s : list) {
 
             if (matcher.reset(s).matches()) {
-                //System.out.println(s.split("\\s")[3].replace(";", "#"));
                 antTreeList.add(s.split("\\s")[3].replace(";", "#"));
             }
         }
 
         Files.deleteIfExists(tempAntTreeFile);
 
-        return antTreeList;
     }
 
 }

@@ -1,7 +1,9 @@
 package com.pentaho.maven.transform;
 
+import java.io.FileNotFoundException;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.stream.Stream;
@@ -58,6 +60,12 @@ public class FileUtils {
         }
     }
 
+    public static void copyFileReplace(Path antSourceFolder, Path mavenDestinationFolder) throws IOException {
+
+        Files.copy(antSourceFolder, mavenDestinationFolder, StandardCopyOption.REPLACE_EXISTING);
+
+    }
+
     static public void removeFile(Path directory) throws IOException {
         if (Files.exists(directory)) {
             try {
@@ -92,9 +100,9 @@ public class FileUtils {
         Files.createDirectories(folders);
     }
 
-    public static void deleteEmptyFolder(Path folder) throws IOException {
+    public static void deleteFile(Path file) throws IOException {
 
-        Files.deleteIfExists(folder);
+        Files.deleteIfExists(file);
 
     }
 
@@ -120,4 +128,20 @@ public class FileUtils {
         }
 
     }
+
+    public static void createFile(Path filePath) throws IOException {
+        Files.createFile(filePath);
+    }
+
+    public static void writeTextToFile(Path filePath, String text) throws FileNotFoundException {
+
+        String fileName = Paths.get(filePath.toString()).toString();
+
+        try (PrintWriter out = new PrintWriter(fileName)) {
+            out.println(text);
+        }
+
+    }
+
+
 }

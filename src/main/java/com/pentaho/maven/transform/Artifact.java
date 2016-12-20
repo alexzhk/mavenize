@@ -8,15 +8,17 @@ public class Artifact {
     private String artifactId;
     private String version;
     private String classifier;
+    private String scope;
 
     public Artifact() {
     }
 
-    public Artifact(String groupId, String artifactId, String version, String classifier) {
+    public Artifact(String groupId, String artifactId, String version, String classifier, String scope) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
         this.classifier = classifier;
+        this.scope = scope;
     }
 
     public String getGroupId() {
@@ -43,6 +45,14 @@ public class Artifact {
         this.version = version;
     }
 
+    public String getScope() {
+        return scope;
+    }
+
+    public void setScope(String scope) {
+        this.scope = scope;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -54,6 +64,7 @@ public class Artifact {
         if (artifactId != null ? !artifactId.equals(artifact.artifactId) : artifact.artifactId != null)
             return false;
         if (version != null ? !version.equals(artifact.version) : artifact.version != null) return false;
+        if (scope != null ? !scope.equals(artifact.scope) : artifact.scope != null) return false;
         return classifier != null ? classifier.equals(artifact.classifier) : artifact.classifier == null;
 
     }
@@ -64,6 +75,7 @@ public class Artifact {
         result = 31 * result + (artifactId != null ? artifactId.hashCode() : 0);
         result = 31 * result + (version != null ? version.hashCode() : 0);
         result = 31 * result + (classifier != null ? classifier.hashCode() : 0);
+        result = 31 * result + (scope != null ? scope.hashCode() : 0);
         return result;
     }
 }
