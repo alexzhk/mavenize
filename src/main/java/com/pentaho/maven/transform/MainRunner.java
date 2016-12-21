@@ -62,7 +62,7 @@ public class MainRunner {
     public static final String ASSEMBLIES_ARTIFACT_DIRECTORY = "assemblies";
     public static final String DEFAULT_SCOPE = "compile";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
-    public static String[] shimsToProcess = new String[]{"hdp24", "hdp25", "cdh58", "cdh59", "mapr410", "mapr510", "emr310",/* "emr41",*/ "emr46"};
+    public static String[] shimsToProcess = new String[]{"hdp24", "hdp25", "cdh58", "cdh59", "mapr410", "mapr510", "emr310",/* "emr41", */"emr46"};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
@@ -89,14 +89,35 @@ public class MainRunner {
         }
 
         MainRunner mainRunner = new MainRunner(args[0]);
-        //mainRunner.moveShimsToMaven();
+        //mainRunner.fixIvy();
         //mainRunner.runForShimsInNewStructure();
-        compare("D:\\1\\p-h-s\\cdh58\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\cdh58\\assemblies\\assembly\\target\\");
+        compare("emr46", "D:\\1\\p-h-s1\\pentaho-hadoop-shims\\emr46\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\emr46\\assemblies\\assembly\\target\\");
 
         //new MainRunner(args[0]).executeCommand("ping pentaho.com");
     }
 
-    private static void compare(String antFolder, String mavenFolder) throws IOException {
+    private void fixIvy() {
+        Path folder = Paths.get("D:\\1\\p-h-s1\\pentaho-hadoop-shims\\");
+        List<String> shimList = Arrays.asList(shimsToProcess);
+        try (Stream<Path> paths = Files.list(folder)) {
+            paths.forEach(filePath -> {
+                if (Files.isDirectory(filePath) && shimList.contains(filePath.getFileName().toString())) {
+
+                    try {
+                        XmlUtilsJDom1.fixIvyWithClassifier(filePath);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ShimCannotBeProcessed shimCannotBeProcessed) {
+                        shimCannotBeProcessed.printStackTrace();
+                    }
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static void compare(String shimName, String antFolder, String mavenFolder) throws IOException {
         Path antPath = Paths.get(antFolder);
         Path mavenPath = Paths.get(mavenFolder);
         Optional<Path> zipArchiveAnt = Files.list(antPath).filter(path -> (path.getFileName().toString().endsWith(ZIP_EXTENSION) && path.getFileName().toString().contains("package"))).findFirst();
@@ -107,17 +128,19 @@ public class MainRunner {
         antBashExecutor.unArchive(zipArchiveAnt.get(), Paths.get(antPath.toString(), TEMP_EXTRACT_FOLDER));
         mavenBashExecutor.unArchive(zipArchiveMaven.get(), Paths.get(mavenPath.toString(), TEMP_EXTRACT_FOLDER));
 
-        Path defaultFolderAnt = Paths.get(antPath.toString(), TEMP_EXTRACT_FOLDER, "cdh58",
+        Path defaultFolderAnt = Paths.get(antPath.toString(), TEMP_EXTRACT_FOLDER, shimName,
                 DEFAULT_FOLDER);
         Path defaultFolderMaven = Paths.get(mavenPath.toString(), TEMP_EXTRACT_FOLDER,
-                "cdh58", DEFAULT_FOLDER);
+                shimName, DEFAULT_FOLDER);
         Path clientFolderAnt = Paths.get(defaultFolderAnt.toString(), CLIENT_FOLDER);
         Path clientFolderMaven = Paths.get(defaultFolderMaven.toString(), CLIENT_FOLDER);
         Path pmrFolderAnt = Paths.get(defaultFolderAnt.toString(), PMR_FOLDER);
         Path pmrFolderMaven = Paths.get(defaultFolderMaven.toString(), PMR_FOLDER);
+        if (Files.exists(clientFolderAnt)) {
+            System.out.println("---------------compare client folders");
+            new DirectoryComparator().compare(clientFolderAnt, clientFolderMaven, defaultFolderMaven, pmrFolderMaven);
+        }
         System.out.println("---------------compare default folders");
-        new DirectoryComparator().compare(clientFolderAnt, clientFolderMaven);
-        System.out.println("---------------compare client folders");
         new DirectoryComparator().compare(defaultFolderAnt, defaultFolderMaven);
         System.out.println("---------------compare pmr folders");
         new DirectoryComparator().compare(pmrFolderAnt, pmrFolderMaven);
@@ -176,8 +199,8 @@ public class MainRunner {
                                 String shimName = shimPath.getFileName().toString();
                                 if (Files.isDirectory(shimPath) && shimList.contains(shimName)) {
                                     try {
-                                        runForShim2(shimPath);
-                                    } catch (IOException | URISyntaxException | JDOMException e) {
+                                        runForShim3(shimPath);
+                                    } catch (IOException | URISyntaxException | JDOMException | ShimCannotBeProcessed e) {
                                         e.printStackTrace();
                                     }
                                 }
@@ -189,6 +212,48 @@ public class MainRunner {
                 }
             });
         }
+    }
+
+    private void runForShim3(Path shimPath) throws IOException, URISyntaxException, JDOMException, ShimCannotBeProcessed {
+        Path fixedPomsAssemblies = Paths.get("D:\\1\\h-s1\\");
+        String shimName = shimPath.getFileName().toString();
+        Path placeWithFixedPomAssembly = Paths.get(fixedPomsAssemblies.toString(), shimName);
+        //replace assembly
+        Path newImplArtifactPath = Paths.get(shimPath.toString(), IMPL_ARTIFACT_DIRECTORY);
+        Path assembliesDirectory = Paths.get(shimPath.toString(), ASSEMBLIES_ARTIFACT_DIRECTORY);
+        Path newAssemblyPath = Paths.get(assembliesDirectory.toString(), ASSEMBLY_ARTIFACT_DIRECTORY);
+
+        moveGenerateAssembly(placeWithFixedPomAssembly, newAssemblyPath);
+        //replace dependencies in pom
+
+        String implArtifactFile = Paths.get(newImplArtifactPath.toString(), POM_XML).toString();
+        Document documentFromFile = XmlUtils.getDocumentFromFile(implArtifactFile);
+        Element dependencies = documentFromFile.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        int dependencyIndex = dependencies.getParent().indexOf(dependencies);
+        dependencies.detach();
+
+        Element properties = documentFromFile.getRootElement().getContent(new ElementFilter("properties")).get(0);
+        int propertiesIndex = properties.getParent().indexOf(properties);
+        properties.detach();
+
+        String fixedDependenciesPom = Paths.get(placeWithFixedPomAssembly.toString(), POM_XML).toString();
+        Document fixedDependenciesPomDocument = XmlUtils.getDocumentFromFile(fixedDependenciesPom);
+
+        Element dependencies1 = fixedDependenciesPomDocument.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        dependencies1.detach();
+        documentFromFile.getRootElement().addContent(dependencyIndex, dependencies1);
+
+        Element properties1 = fixedDependenciesPomDocument.getRootElement().getContent(new ElementFilter("properties")).get(0);
+        properties1.detach();
+        documentFromFile.getRootElement().addContent(propertiesIndex, properties1);
+
+        Path antShimFolder = Paths.get("D:\\1\\BAD-570_2\\phs\\", shimName);
+
+        Element dependenciesNew = documentFromFile.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        addCommonDependencies(antShimFolder, dependenciesNew);
+
+        XmlUtils.outputDoc(documentFromFile, Paths.get(newImplArtifactPath.toString(), "pom.xml").toString());
+
     }
 
     private void runForShim2(Path shimPath) throws IOException, URISyntaxException, JDOMException {
@@ -228,7 +293,6 @@ public class MainRunner {
         //generate pom for assemblies, put it
 
         //String shimName = shimPath.getFileName().toString();
-        Path antShimFolder = Paths.get("D:\\1\\BAD-570_2\\phs\\", shimName);
 
         //Path newImplArtifactPath = Paths.get(shimPath.toString(), IMPL_ARTIFACT_DIRECTORY);
         String implArtifactFile = Paths.get(newImplArtifactPath.toString(), POM_XML).toString();
@@ -241,22 +305,10 @@ public class MainRunner {
                 "          <groupId>org.apache.maven.plugins</groupId>" +
                 "          <artifactId>maven-compiler-plugin</artifactId></plugin>");
 
-        PropertyReader propertyReader = new PropertyReader(antShimFolder);
+        Path antShimFolder = Paths.get("D:\\1\\BAD-570_2\\phs\\", shimName);
+        Element pomWithDependenciesDocument = addCommonDependencies(antShimFolder, dependenciesElement);
 
-        String pomWithCommonDependencies = new String(Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource("common-dependecies-impl.xml").toURI())));
-        ShimProperties shimProperties = propertyReader.readShimProperties();
 
-        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hbase.version}", shimProperties.getHbaseVersion());
-        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hadoop.version}", shimProperties.getHadoopVersion());
-        pomWithCommonDependencies = pomWithCommonDependencies.replace("${pig.version}", shimProperties.getPigVersion());
-        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hbase.generation.version}", getHbaseGenerationVersion(shimProperties));
-
-        Element pomWithDependenciesDocument = XmlUtils.readElementFromStringFull(pomWithCommonDependencies);
-        List<Element> additionalDependencies = pomWithDependenciesDocument.getContent(new ElementFilter("dependencies")).get(0).getChildren();
-        ArrayList<Element> elements = new ArrayList<>(additionalDependencies);
-        for (Element dependency : elements) {
-            dependency.detach();
-        }
         Element pluginElement = pomWithDependenciesDocument.getContent(new ElementFilter("build")).get(0).getContent(new ElementFilter("plugins")).get(0).getChildren().get(0);
         pluginElement.detach();
         pluginsElement.addContent(pluginElement);
@@ -280,7 +332,7 @@ public class MainRunner {
         List<Element> sourceDirectoryElementList = buildElement.getContent(new ElementFilter("sourceDirectory"));
         if (sourceDirectoryElementList.size() > 0) {
             buildElement.removeContent(sourceDirectoryElementList.get(0));
-            dependenciesElement.addContent(elements);
+            //dependenciesElement.addContent(elements);
         }
         List<Element> resourceElementList = buildElement.getContent(new ElementFilter("resources"));
         if (resourceElementList.size() > 0) {
@@ -292,6 +344,27 @@ public class MainRunner {
         XmlUtils.outputDoc(documentFromFile, Paths.get(newImplArtifactPath.toString(), "pom.xml").toString());
         //remove common sources as earlier, sourceDirectoryElementList element, resources
         //add dependencies to common folders dynamic, add plugin build-helper with resource management, test-resource management,
+    }
+
+    private Element addCommonDependencies(Path antShimFolder, Element dependenciesElement) throws IOException, URISyntaxException, JDOMException {
+        PropertyReader propertyReader = new PropertyReader(antShimFolder);
+
+        String pomWithCommonDependencies = new String(Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource("common-dependecies-impl.xml").toURI())));
+        ShimProperties shimProperties = propertyReader.readShimProperties();
+
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hbase.version}", shimProperties.getHbaseVersion());
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hadoop.version}", shimProperties.getHadoopVersion());
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${pig.version}", shimProperties.getPigVersion());
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hbase.generation.version}", getHbaseGenerationVersion(shimProperties));
+
+        Element pomWithDependenciesDocument = XmlUtils.readElementFromStringFull(pomWithCommonDependencies);
+        List<Element> additionalDependencies = pomWithDependenciesDocument.getContent(new ElementFilter("dependencies")).get(0).getChildren();
+        ArrayList<Element> elements = new ArrayList<>(additionalDependencies);
+        for (Element dependency : elements) {
+            dependency.detach();
+        }
+        dependenciesElement.addContent(elements);
+        return pomWithDependenciesDocument;
     }
 
     private void fixParent(Path shimPath, String parentName) throws JDOMException, IOException {
