@@ -79,6 +79,12 @@ public class XmlUtils {
         return targetElement;
     }
 
+    public static Element readElementFromStringFull(String toAdd) throws JDOMException, IOException {
+        SAXBuilder jdomBuilder2 = new SAXBuilder(false);
+        Document doc = jdomBuilder2.build(new StringReader(toAdd));
+        return doc.getRootElement();
+    }
+
     public static void updateNameSpaceParent(Element rootElement, String elementName) {
         Element childElement = rootElement.getContent(new ElementFilter(elementName)).stream().findFirst().get();
         updateNameSpaceParent(rootElement, childElement);

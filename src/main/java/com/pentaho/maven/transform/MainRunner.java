@@ -13,6 +13,7 @@ import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
 import org.jdom2.Namespace;
+import org.jdom2.filter.ContentFilter;
 import org.jdom2.filter.ElementFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,9 +24,7 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -63,7 +62,7 @@ public class MainRunner {
     public static final String ASSEMBLIES_ARTIFACT_DIRECTORY = "assemblies";
     public static final String DEFAULT_SCOPE = "compile";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
-    public static String[] shimsToProcess = new String[]{"hdp24", "hdp25", "cdh58", "cdh59", "mapr410", "mapr510", "emr310", "emr41", "emr46"};
+    public static String[] shimsToProcess = new String[]{"hdp24", "hdp25", "cdh58", "cdh59", "mapr410", "mapr510", "emr310",/* "emr41",*/ "emr46"};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
@@ -90,7 +89,8 @@ public class MainRunner {
         }
 
         MainRunner mainRunner = new MainRunner(args[0]);
-        mainRunner.moveShimsToMaven();
+        //mainRunner.moveShimsToMaven();
+        mainRunner.runForShimsInNewStructure();
 
         //new MainRunner(args[0]).executeCommand("ping pentaho.com");
     }
@@ -197,8 +197,70 @@ public class MainRunner {
         //rename module includance from jar to impl
         //generate pom for assemblies, put it
 
+        //String shimName = shimPath.getFileName().toString();
+        Path antShimFolder = Paths.get("D:\\1\\BAD-570_2\\phs\\", shimName);
 
-        //remove common sources as earlier, sourceDirectory element, resources
+        //Path newImplArtifactPath = Paths.get(shimPath.toString(), IMPL_ARTIFACT_DIRECTORY);
+        String implArtifactFile = Paths.get(newImplArtifactPath.toString(), POM_XML).toString();
+        Document documentFromFile = XmlUtils.getDocumentFromFile(implArtifactFile);
+        Element dependenciesElement = documentFromFile.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        Element buildElement = documentFromFile.getRootElement().getContent(new ElementFilter("build")).get(0);
+        Element pluginsElement = buildElement.getContent(new ElementFilter("plugins")).get(0);
+
+        XmlUtils.deleteElement(implArtifactFile, new ElementWithChildValueInParentPathCondition(new String[] {"build", "plugins"}, "artifactId"), " <plugin>" +
+                "          <groupId>org.apache.maven.plugins</groupId>" +
+                "          <artifactId>maven-compiler-plugin</artifactId></plugin>");
+
+        PropertyReader propertyReader = new PropertyReader(antShimFolder);
+
+        String pomWithCommonDependencies = new String(Files.readAllBytes(Paths.get(getClass().getClassLoader().getResource("common-dependecies-impl.xml").toURI())));
+        ShimProperties shimProperties = propertyReader.readShimProperties();
+
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hbase.version}", shimProperties.getHbaseVersion());
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hadoop.version}", shimProperties.getHadoopVersion());
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${pig.version}", shimProperties.getPigVersion());
+        pomWithCommonDependencies = pomWithCommonDependencies.replace("${hbase.generation.version}", getHbaseGenerationVersion(shimProperties));
+
+        Element pomWithDependenciesDocument = XmlUtils.readElementFromStringFull(pomWithCommonDependencies);
+        List<Element> additionalDependencies = pomWithDependenciesDocument.getContent(new ElementFilter("dependencies")).get(0).getChildren();
+        ArrayList<Element> elements = new ArrayList<>(additionalDependencies);
+        for (Element dependency : elements) {
+            dependency.detach();
+        }
+        Element pluginElement = pomWithDependenciesDocument.getContent(new ElementFilter("build")).get(0).getContent(new ElementFilter("plugins")).get(0).getChildren().get(0);
+        pluginElement.detach();
+        pluginsElement.addContent(pluginElement);
+
+        for (Element element : dependenciesElement.getChildren()) {
+            String classifier = XmlUtils.getTagValue(element, "classifier");
+            String groupId1 = XmlUtils.getTagValue(element, "groupId");
+            String scope = XmlUtils.getTagValue(element, "scope");
+            String version = XmlUtils.getTagValue(element, "version");
+            Artifact artifact = new Artifact(groupId1, XmlUtils.getTagValue(element, "artifactId"), version, classifier, scope);
+            //System.out.println(artifact);
+            if (Objects.equals(artifact.getGroupId(), "org.pentaho") && !Objects.equals(artifact.getArtifactId(), "pentaho-hadoop-shims-api")) {
+                Element groupIdElement = element.getContent(new ElementFilter("groupId")).get(0);
+                System.out.println("found " + artifact);
+                groupIdElement.setText("pentaho");
+            }
+            //if (dependency.getChild(""))
+        }
+
+
+        List<Element> sourceDirectoryElementList = buildElement.getContent(new ElementFilter("sourceDirectory"));
+        if (sourceDirectoryElementList.size() > 0) {
+            buildElement.removeContent(sourceDirectoryElementList.get(0));
+            dependenciesElement.addContent(elements);
+        }
+        List<Element> resourceElementList = buildElement.getContent(new ElementFilter("resources"));
+        if (resourceElementList.size() > 0) {
+            buildElement.removeContent(resourceElementList.get(0));
+        }
+
+
+        //XmlUtils.getDocumentFromFile()
+        XmlUtils.outputDoc(documentFromFile, Paths.get(newImplArtifactPath.toString(), "pom.xml").toString());
+        //remove common sources as earlier, sourceDirectoryElementList element, resources
         //add dependencies to common folders dynamic, add plugin build-helper with resource management, test-resource management,
     }
 
@@ -471,7 +533,7 @@ public class MainRunner {
                             "      </resource>\n" +
                             "      <resource>\n" +
                             "        <targetPath>${basedir}/target/classes/META-INF</targetPath>\n" +
-                            "        <directory>../common/src-hbase-" + getHbaseVersion(shimProperties) + "/META-INF</directory>\n" +
+                            "        <directory>../common/src-hbase-" + getHbaseGenerationVersion(shimProperties) + "/META-INF</directory>\n" +
                             "      </resource>\n" +
                             "      <resource>\n" +
                             "        <targetPath>${basedir}/target/classes/META-INF</targetPath>\n" +
@@ -517,7 +579,7 @@ public class MainRunner {
                         "                   <include>common/src-mapred/**/*.java</include>\n" +
                         "                   <include>common/src-modern/**/*.java</include>\n" +
                         "                   <include>common/src-hadoop-shim-" + shimProperties.getHadoopVersion() + "/**/*.java</include>" +
-                        "                   <include>common/src-hbase-" + getHbaseVersion(shimProperties) + "/**/*.java</include>\n" +
+                        "                   <include>common/src-hbase-" + getHbaseGenerationVersion(shimProperties) + "/**/*.java</include>\n" +
                         "                   <include>common/src-hbase-shim-" + shimProperties.getHbaseVersion() + "/**/*.java</include>\n" +
                         "                   <include>common/src-pig-shim-" + shimProperties.getPigVersion() + "/**/*.java</include>\n" +
                         "                   <include>" + folder.getFileName() + "/src/main/java/**/*.java</include>" +
@@ -545,7 +607,7 @@ public class MainRunner {
                         "</plugin>", new ElementWithChildValueInParentPathCondition(parentNodes, "artifactId"), new ToParentPathInserter(parentNodes), "");
     }
 
-    private String getHbaseVersion(ShimProperties shimProperties) {
+    private String getHbaseGenerationVersion(ShimProperties shimProperties) {
         return shimProperties.getHbaseGenerationVersion() == null ? "pre1.0" : shimProperties.getHbaseGenerationVersion();
     }
 
