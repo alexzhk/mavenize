@@ -90,9 +90,39 @@ public class MainRunner {
 
         MainRunner mainRunner = new MainRunner(args[0]);
         //mainRunner.moveShimsToMaven();
-        mainRunner.runForShimsInNewStructure();
+        //mainRunner.runForShimsInNewStructure();
+        compare("D:\\1\\p-h-s\\cdh58\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\cdh58\\assemblies\\assembly\\target\\");
 
         //new MainRunner(args[0]).executeCommand("ping pentaho.com");
+    }
+
+    private static void compare(String antFolder, String mavenFolder) throws IOException {
+        Path antPath = Paths.get(antFolder);
+        Path mavenPath = Paths.get(mavenFolder);
+        Optional<Path> zipArchiveAnt = Files.list(antPath).filter(path -> (path.getFileName().toString().endsWith(ZIP_EXTENSION) && path.getFileName().toString().contains("package"))).findFirst();
+        Optional<Path> zipArchiveMaven = Files.list(mavenPath).filter(path -> (path.getFileName().toString().endsWith(ZIP_EXTENSION))).findFirst();
+        //for running this 7z needed installed
+        BashExecutor antBashExecutor = new BashExecutor(antPath);
+        BashExecutor mavenBashExecutor = new BashExecutor(mavenPath);
+        antBashExecutor.unArchive(zipArchiveAnt.get(), Paths.get(antPath.toString(), TEMP_EXTRACT_FOLDER));
+        mavenBashExecutor.unArchive(zipArchiveMaven.get(), Paths.get(mavenPath.toString(), TEMP_EXTRACT_FOLDER));
+
+        Path defaultFolderAnt = Paths.get(antPath.toString(), TEMP_EXTRACT_FOLDER, "cdh58",
+                DEFAULT_FOLDER);
+        Path defaultFolderMaven = Paths.get(mavenPath.toString(), TEMP_EXTRACT_FOLDER,
+                "cdh58", DEFAULT_FOLDER);
+        Path clientFolderAnt = Paths.get(defaultFolderAnt.toString(), CLIENT_FOLDER);
+        Path clientFolderMaven = Paths.get(defaultFolderMaven.toString(), CLIENT_FOLDER);
+        Path pmrFolderAnt = Paths.get(defaultFolderAnt.toString(), PMR_FOLDER);
+        Path pmrFolderMaven = Paths.get(defaultFolderMaven.toString(), PMR_FOLDER);
+        System.out.println("---------------compare default folders");
+        new DirectoryComparator().compare(clientFolderAnt, clientFolderMaven);
+        System.out.println("---------------compare client folders");
+        new DirectoryComparator().compare(defaultFolderAnt, defaultFolderMaven);
+        System.out.println("---------------compare pmr folders");
+        new DirectoryComparator().compare(pmrFolderAnt, pmrFolderMaven);
+
+
     }
 
     public void moveShimsToMaven() throws IOException {
