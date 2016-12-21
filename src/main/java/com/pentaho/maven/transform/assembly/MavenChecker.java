@@ -114,7 +114,11 @@ public class MavenChecker {
         }
 
         Files.list(libFolder).filter(path -> path.getFileName().toString().endsWith("jar")).forEach(path -> fileNames1.add(path.getFileName().toString()));
-        Files.list(clientFolder).filter(path -> path.getFileName().toString().endsWith("jar")).forEach(path -> fileNames2.add(path.getFileName().toString()));
+
+        if (Files.exists(clientFolder)) {
+            Files.list(clientFolder).filter(path -> path.getFileName().toString().endsWith("jar")).forEach(path -> fileNames2.add(path.getFileName().toString()));
+        }
+
         Files.list(pmrFolder).filter(path -> path.getFileName().toString().endsWith("jar")).forEach(path -> fileNames3.add(path.getFileName().toString()));
 
         String tmp = "";
@@ -136,19 +140,21 @@ public class MavenChecker {
             }
         }
 
-        for (String el : fileNames2) {
-            set.add(el);
-            for (Integer artifact : indexList) {
-                pattern = Pattern.compile("^" + aAnt.get(artifact) + "-[0-9].*");
-                matcher = pattern.matcher("");
-                if (matcher.reset(el).matches() && !(avAnt.get(artifact) + ".jar").equals(el)) {
-                    if (isMaven) {
-                        dependencies.add(gavAnt.get(artifact));
+        if (Files.exists(clientFolder)) {
+            for (String el : fileNames2) {
+                set.add(el);
+                for (Integer artifact : indexList) {
+                    pattern = Pattern.compile("^" + aAnt.get(artifact) + "-[0-9].*");
+                    matcher = pattern.matcher("");
+                    if (matcher.reset(el).matches() && !(avAnt.get(artifact) + ".jar").equals(el)) {
+                        if (isMaven) {
+                            dependencies.add(gavAnt.get(artifact));
+                        }
+                        set.remove(el);
+                        break;
                     }
-                    set.remove(el);
-                    break;
-                }
 
+                }
             }
         }
 
