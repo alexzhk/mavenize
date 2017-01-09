@@ -5,8 +5,8 @@ package com.pentaho.maven.transform;
  */
 public class Constants {
     public static String PARENT_TAG = "<parent>\n" +
-            "    <groupId>pentaho</groupId>\n" +
-            "    <artifactId>pentaho-hadoop-shims-parent</artifactId>\n" +
+            "    <groupId>org.pentaho</groupId>\n" +
+            "    <artifactId>pentaho-hadoop-shims-${module_name}-reactor</artifactId>\n" +
             "    <version>7.1-SNAPSHOT</version>\n" +
             "  </parent>";
 

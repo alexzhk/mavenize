@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Created by Vasilina_Terehova on 12/10/2016.
@@ -103,6 +104,7 @@ public class XmlUtilsJDom1 {
             throw new ShimCannotBeProcessed(e.getMessage(), e.getCause());
         }
         List<Element> dependencies = ((Element) documentFromFile.getRootElement().getContent(new ElementFilter("dependencies")).get(0)).getContent(new ElementFilter("dependency"));
+        Element dependencyDelete = null;
         for (Element dependency : dependencies) {
             Namespace mNamespace = Namespace.getNamespace("m", "http://ant.apache.org/ivy/maven");
             Attribute classifierAttr = dependency.getAttribute("classifier", mNamespace);
@@ -115,6 +117,13 @@ public class XmlUtilsJDom1 {
                 artifact.setAttribute("ext", "jar");
                 dependency.addContent(artifact);
             }
+            if (Objects.equals(dependency.getAttribute("org").getValue(), "org.apache.hbase") && Objects.equals(dependency.getAttribute("name").getValue(), "hbase")) {
+                dependencyDelete = dependency;
+            }
+        }
+        if (dependencyDelete != null) {
+            //remove pom dependency
+            dependencyDelete.detach();
         }
         outputDoc(documentFromFile, ivyFile);
 

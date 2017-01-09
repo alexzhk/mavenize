@@ -5,7 +5,7 @@
 
   <parent>
     <groupId>org.pentaho</groupId>
-    <artifactId>pentaho-hadoop-shims-parent</artifactId>
+    <artifactId>pentaho-hadoop-shims-${module_name}-reactor</artifactId>
     <version>7.1-SNAPSHOT</version>
   </parent>
 
@@ -13,6 +13,6 @@
   <packaging>pom</packaging>
 
   <modules>
-    <module>assembly</module>
+    <module>${module_name}-shim</module>
   </modules>
 </project>

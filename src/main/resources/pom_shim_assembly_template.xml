@@ -9,7 +9,7 @@
     <version>7.1-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pentaho-hadoop-shims-${module_name}-assembly</artifactId>
+  <artifactId>pentaho-hadoop-shims-${module_name}-package</artifactId>
 
   <dependencies>
     <dependency>
@@ -36,6 +36,36 @@
           <descriptor>${basedir}/src/main/descriptor/assembly.xml</descriptor>
           <appendAssemblyId>false</appendAssemblyId>
         </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>unpack-common-sources</id>
+            <phase>none</phase>
+          </execution>
+          <execution>
+            <id>unpack</id>
+            <phase>process-sources</phase>
+            <goals>
+              <goal>unpack</goal>
+            </goals>
+            <configuration>
+              <artifactItems>
+                <artifactItem>
+                  <groupId>pentaho</groupId>
+                  <artifactId>oss-licenses</artifactId>
+                  <version>${pentaho.version}</version>
+                  <type>zip</type>
+                  <overWrite>false</overWrite>
+                  <outputDirectory>${oss.license.directory}</outputDirectory>
+                  <includes>*${shim.name}*</includes>
+                </artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>

@@ -93,7 +93,7 @@ public class VersionGenerator {
             propertiesBuffer.append("</properties>");
             System.out.println(propertiesBuffer.toString());
             //Element versionElement = rootElement.getContent(new ElementFilter("version")).stream().findFirst().get();
-            XmlUtils.addElement(propertiesBuffer.toString(), rootElement, new ElementExistCondition(), new AfterChildInserter("artifactId"), "");
+            XmlUtils.addElement(propertiesBuffer.toString(), rootElement, new ElementExistCondition(), new AfterChildInserter("version"), "");
             XmlUtils.updateNameSpaceParent(rootElement, "properties");
             XmlUtils.outputDoc(documentFromFile, Paths.get(folder.toString(), MainRunner.POM_XML).toString());
         }
