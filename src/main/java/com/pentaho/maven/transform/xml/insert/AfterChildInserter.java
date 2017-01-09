@@ -16,6 +16,6 @@ public class AfterChildInserter implements BaseInsertOperation {
     @Override
     public void insert(Element rootNode, Element node) {
         Element childAfter = rootNode.getContent(new ElementFilter(childNode)).stream().findFirst().get();
-        rootNode.addContent(rootNode.indexOf(childAfter), node);
+        rootNode.addContent(rootNode.indexOf(childAfter)+1, node);
     }
 }

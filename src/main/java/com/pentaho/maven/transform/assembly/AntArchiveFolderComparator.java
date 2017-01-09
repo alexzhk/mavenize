@@ -75,7 +75,7 @@ public class AntArchiveFolderComparator {
             }
 
             for (String include : list) {
-                dependencySection.add("<include>" + include + "</include>\n");
+                dependencySection.add("        <include>" + include + "</include>\n");
             }
         }
 

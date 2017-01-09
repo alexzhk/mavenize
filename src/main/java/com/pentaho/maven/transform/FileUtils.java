@@ -1,7 +1,6 @@
 package com.pentaho.maven.transform;
 
 import java.io.FileNotFoundException;
-import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.*;
@@ -13,20 +12,20 @@ import java.util.stream.Stream;
  */
 public class FileUtils {
 
-    public static void moveFolder(Path moduleFolder, String from, Path where, String to) throws IOException {
+    public static void copyFolder(Path moduleFolder, String from, Path where, String to) throws IOException {
         Path fromRoot = Paths.get(moduleFolder.toString(), from);
         String firstTestPackageFolder = fromRoot.getFileName().toString();
         Path mavenTestSourceFolder = Paths.get(where.toString(), to, firstTestPackageFolder);
         System.out.println("moving " + fromRoot + " to " + mavenTestSourceFolder);
         try {
-            moveFile(fromRoot, mavenTestSourceFolder);
+            copyFile(fromRoot, mavenTestSourceFolder);
         } catch (FileAlreadyExistsException e) {
             e.printStackTrace();
         }
 
     }
 
-    public static void moveAllInsideFolder(Path moduleFolder, String from, Path mavenFileLocation) throws IOException {
+    public static void copyAllInsideFolder(Path moduleFolder, String from, Path mavenFileLocation) throws IOException {
         Path fromRoot = Paths.get(moduleFolder.toString(), from);
         if (Files.exists(fromRoot)) {
             Stream<Path> list = Files.list(fromRoot);
@@ -35,7 +34,7 @@ public class FileUtils {
                 //Path mavenFileLocation = Paths.get(moduleFolder.toString(), to, /*firstTestPackageFolder, */path.getFileName().toString());
                 System.out.println("moving " + antFileLocation + " to " + mavenFileLocation);
                 try {
-                    moveFile(antFileLocation, Paths.get(mavenFileLocation.toString(), antFileLocation.getFileName().toString()));
+                    copyFile(antFileLocation, Paths.get(mavenFileLocation.toString(), antFileLocation.getFileName().toString()));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -44,9 +43,9 @@ public class FileUtils {
 
     }
 
-    public static void moveFile(Path antTestSourceFolder, Path mavenTestSourceFolder) throws IOException {
+    public static void copyFile(Path antTestSourceFolder, Path mavenTestSourceFolder) throws IOException {
         try {
-            Files.move(antTestSourceFolder, mavenTestSourceFolder);
+            FileUtils.copy(antTestSourceFolder, mavenTestSourceFolder);
         } catch (NoSuchFileException e) {
             System.out.println("nothing to be moved " + antTestSourceFolder + " to " + mavenTestSourceFolder);
         }
@@ -54,15 +53,35 @@ public class FileUtils {
 
     public static void moveFileReplace(Path antTestSourceFolder, Path mavenTestSourceFolder) throws IOException {
         try {
-            Files.move(antTestSourceFolder, mavenTestSourceFolder, StandardCopyOption.REPLACE_EXISTING);
+            FileUtils.copy(antTestSourceFolder, mavenTestSourceFolder);
         } catch (NoSuchFileException e) {
             System.out.println("nothing to be moved " + antTestSourceFolder + " to " + mavenTestSourceFolder);
         }
     }
 
+    public static void copy(Path sourcePath, Path targetPath) throws IOException {
+        Files.walkFileTree(sourcePath, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult preVisitDirectory(final Path dir,
+                                                     final BasicFileAttributes attrs) throws IOException {
+                Files.createDirectories(targetPath.resolve(sourcePath
+                        .relativize(dir)));
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult visitFile(final Path file,
+                                             final BasicFileAttributes attrs) throws IOException {
+                Files.copy(file,
+                        targetPath.resolve(sourcePath.relativize(file)), StandardCopyOption.REPLACE_EXISTING);
+                return FileVisitResult.CONTINUE;
+            }
+        });
+    }
+
     public static void copyFileReplace(Path antSourceFolder, Path mavenDestinationFolder) throws IOException {
 
-        Files.copy(antSourceFolder, mavenDestinationFolder, StandardCopyOption.REPLACE_EXISTING);
+        FileUtils.copy(antSourceFolder, mavenDestinationFolder);
 
     }
 
