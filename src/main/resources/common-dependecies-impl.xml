@@ -35,7 +35,6 @@
                 <artifactItem>
                   <groupId>org.pentaho</groupId>
                   <artifactId>pentaho-hadoop-shims-common-pig-shim-${pig.version}</artifactId>
-                  <version>7.1-SNAPSHOT</version>
                   <classifier>sources</classifier>
                   <overWrite>false</overWrite>
                   <outputDirectory>${project.build.directory}/src</outputDirectory>

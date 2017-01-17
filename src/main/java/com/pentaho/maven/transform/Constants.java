@@ -23,7 +23,7 @@ public class Constants {
             "</execution>\n" +
             "</executions>\n" +
             "<configuration>\n" +
-            "<descriptor>${basedir}/src/main/descriptor/assembly.xml</descriptor>\n" +
+            "<descriptor>${basedir}/src/assembly/assembly.xml</descriptor>\n" +
             "<appendAssemblyId>false</appendAssemblyId>\n" +
             "</configuration>\n" +
             "</plugin>";

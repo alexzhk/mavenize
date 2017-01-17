@@ -33,7 +33,7 @@
           </execution>
         </executions>
         <configuration>
-          <descriptor>${basedir}/src/main/descriptor/assembly.xml</descriptor>
+          <descriptor>${project.basedir}/src/assembly/assembly.xml</descriptor>
           <appendAssemblyId>false</appendAssemblyId>
         </configuration>
       </plugin>
@@ -56,7 +56,6 @@
                 <artifactItem>
                   <groupId>pentaho</groupId>
                   <artifactId>oss-licenses</artifactId>
-                  <version>${pentaho.version}</version>
                   <type>zip</type>
                   <overWrite>false</overWrite>
                   <outputDirectory>${oss.license.directory}</outputDirectory>
