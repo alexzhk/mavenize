@@ -12,6 +12,10 @@
   <artifactId>pentaho-hadoop-shims-${module_name}-reactor</artifactId>
   <packaging>pom</packaging>
 
+  <properties>
+    <shim.name>${module_name}</shim.name>
+  </properties>
+
   <modules>
     <module>impl</module>
     <module>assemblies</module>

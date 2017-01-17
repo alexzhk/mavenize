@@ -48,7 +48,7 @@ public class MainRunner {
     public static final String TEMP_EXTRACT_FOLDER = "extract";
     public static final String DEFAULT_FOLDER = "lib";
     public static final String CLIENT_FOLDER = "client";
-    public static final String DESCRIPTOR_FOLDER = "src/main/descriptor";
+    public static final String DESCRIPTOR_FOLDER = "src/assembly";
     public static final String PMR_FOLDER = "pmr";
     public static final String POM_XML = "pom.xml";
     public static final String IVY_XML = "ivy.xml";
@@ -66,7 +66,7 @@ public class MainRunner {
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
     public static String testResourceJavaSubfolder = sourceFolderArrayMaven[3];
-    public static String descriptorJavaSubfolder = "src/main/descriptor";
+    public static String descriptorJavaSubfolder = "src/assembly";
 
     BashExecutor rootFolderExecutor;
     BashExecutor moduleBashExecutor;
@@ -93,7 +93,10 @@ public class MainRunner {
         mainRunner.runForShim(Paths.get(mainRunner.folder, shimName));
         //mainRunner.fixIvy();
         //mainRunner.runForShimsInNewStructure();
-        //DirectoryComparator.compare("emr46", "D:\\1\\p-h-s1\\pentaho-hadoop-shims\\emr46\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\emr46\\assemblies\\assembly\\target\\");
+//        for (String shimName : shimsToProcess) {
+//            //    compare(shimName, "D:\\1\\p-h-s1\\"+shimName+"\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\"+shimName+"\\assemblies\\"+shimName+"-shim\\target\\");
+//        }
+        //DirectoryComparator.compare("emr52", "D:\\1\\p-h-s1\\emr52\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\emr52\\assemblies\\emr52-shim\\target\\");
 
         //new MainRunner(args[0]).executeCommand("ping pentaho.com");
     }
@@ -142,7 +145,7 @@ public class MainRunner {
         pomWithCommonDependencies = pomWithCommonDependencies.replace("${pig.version}", shimProperties.getPigVersion());
 
         Element pomWithDependenciesDocument = XmlUtils.readElementFromStringFull(pomWithCommonDependencies);
-        List<Element> additionalDependencies = pomWithDependenciesDocument.getContent(new ElementFilter("build")).get(0).getChildren();
+        List<Element> additionalDependencies = pomWithDependenciesDocument.getContent(new ElementFilter("dependencies")).get(0).getChildren();
         Element fixedPluginsElement = pomWithDependenciesDocument.getContent(new ElementFilter("build")).get(0).getContent(new ElementFilter("plugins")).get(0);
         fixedPluginsElement.detach();
         ArrayList<Element> elements = new ArrayList<>(additionalDependencies);
