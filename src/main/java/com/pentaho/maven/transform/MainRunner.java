@@ -203,6 +203,94 @@ public class MainRunner {
         createSourceDirectories(assemblyDirectory);
     }
 
+
+    private void removeFirstComment(Path modulePath) throws IOException, JDOMException {
+        Path pomPath = Paths.get(modulePath.toString(), MainRunner.POM_XML);
+        Document documentFromFile = XmlUtils.getDocumentFromFile(pomPath.toString());
+        if (documentFromFile.getContent(0).getCType().name().toLowerCase().equals("comment")) {
+            documentFromFile.removeContent(0);
+            XmlUtils.outputDoc(documentFromFile, Paths.get(modulePath.toString(), MainRunner.POM_XML).toString());
+        }
+    }
+
+    private Integer convertVersionToInt(Element element) {
+
+        String versionValue = "";
+        Integer numVersion = 0;
+        String version[];
+
+        version = XmlUtils.getTagValue(element, "version").split("\\.");
+        for (String s : version) {
+            versionValue = versionValue + s;
+        }
+
+        try {
+            numVersion = Integer.parseInt(versionValue);
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+        }
+
+        return numVersion;
+    }
+
+    private void removeDuplicateDeps(Path modulePath) throws IOException, JDOMException {
+
+        Path pomPath = Paths.get(modulePath.toString(), MainRunner.POM_XML);
+        Document documentFromFile = XmlUtils.getDocumentFromFile(pomPath.toString());
+        Element rootElement = documentFromFile.getRootElement();
+        List<Element> dependencies = rootElement.getContent(new ElementFilter("dependencies")).get(0).getChildren();
+        List<Element> uniqueList = new ArrayList<>();
+        List<Element> duplicates = new ArrayList<>();
+
+        dependencies.stream().forEach(element -> {
+            if (uniqueList.isEmpty()) {
+                uniqueList.add(element);
+            } else {
+                String artifact = XmlUtils.getTagValue(element, "groupId") + ":" + XmlUtils.getTagValue(element, "artifactId");
+                Integer numVersion = 0;
+                Integer numVersion1 = 0;
+
+                for (int i = 0; i < uniqueList.size(); i++) {
+                    Element el = uniqueList.get(i);
+                    String artifact1 = XmlUtils.getTagValue(el, "groupId") + ":" + XmlUtils.getTagValue(el, "artifactId");
+
+                    if (artifact.equals(artifact1)) {
+                        if (XmlUtils.getTagValue(el, "scope").equals("provided")) {
+                            el.getContent(new ElementFilter("scope")).get(0).setText(XmlUtils.getTagValue(element, "scope"));
+                        }
+
+                        if (XmlUtils.getTagValue(element, "scope").equals("compile")) {
+                            el.getContent(new ElementFilter("scope")).get(0).setText(XmlUtils.getTagValue(element, "scope"));
+                        }
+
+                        numVersion = convertVersionToInt(element);
+                        numVersion1 = convertVersionToInt(el);
+
+                        if (numVersion != 0 && numVersion1 != 0) {
+                            if (numVersion > numVersion1) {
+                                el.getContent(new ElementFilter("version")).get(0).setText(XmlUtils.getTagValue(element, "version"));
+                            }
+                        }
+
+                        duplicates.add(element);
+                        break;
+                    } else {
+                        if (i == uniqueList.size() - 1) {
+                            uniqueList.add(element);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+
+        if (!uniqueList.isEmpty()) {
+            rootElement.getContent(new ElementFilter("dependencies")).get(0).setContent(uniqueList);
+            XmlUtils.outputDoc(documentFromFile, Paths.get(modulePath.toString(), MainRunner.POM_XML).toString());
+        }
+
+    }
+
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed, URISyntaxException {
         String shimName = modulePath.getFileName().toString();
         moduleBashExecutor = new BashExecutor(modulePath);
@@ -212,6 +300,9 @@ public class MainRunner {
         addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
         XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
         runTransferGoal(modulePath);
+
+        removeFirstComment(modulePath);
+        removeDuplicateDeps(modulePath);
 
         addAssemblySectionForShim(modulePath);
         //runScriptAssemblyGenerating(modulePath);
@@ -421,6 +512,7 @@ public class MainRunner {
 //        moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), "package-res"));
 
     }
+
     public void removeGithubCommonSource(Path modulePath, String src, String testSrc) throws IOException {
         if (testSrc != null) {
             moduleBashExecutor.gitRemove(Paths.get(modulePath.toString(), testSrc));
