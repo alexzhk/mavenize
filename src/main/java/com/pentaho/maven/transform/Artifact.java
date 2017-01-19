@@ -53,6 +53,15 @@ public class Artifact {
         this.scope = scope;
     }
 
+    public String getClassifier() {
+        return classifier;
+    }
+
+    public void setClassifier(String classifier) {
+        this.classifier = classifier;
+    }
+
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
