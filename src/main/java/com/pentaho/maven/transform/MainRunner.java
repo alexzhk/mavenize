@@ -88,17 +88,12 @@ public class MainRunner {
         }
 
         MainRunner mainRunner = new MainRunner(args[0], args[1]);
-        //mainRunner.moveShimsToMaven();
         String shimName = "emr52";
-        mainRunner.runForShim(Paths.get(mainRunner.folder, shimName));
-        //mainRunner.fixIvy();
-        //mainRunner.runForShimsInNewStructure();
-//        for (String shimName : shimsToProcess) {
-//            //    compare(shimName, "D:\\1\\p-h-s1\\"+shimName+"\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\"+shimName+"\\assemblies\\"+shimName+"-shim\\target\\");
-//        }
-        //DirectoryComparator.compare("emr52", "D:\\1\\p-h-s1\\emr52\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\emr52\\assemblies\\emr52-shim\\target\\");
+        mainRunner.runForShim(shimName);
+    }
 
-        //new MainRunner(args[0]).executeCommand("ping pentaho.com");
+    public void runForShim(String shimName) throws JDOMException, URISyntaxException, ShimCannotBeProcessed, IOException {
+        runForShim(Paths.get(folder, shimName));
     }
 
     private void runForShimsInNewStructure() throws IOException {
