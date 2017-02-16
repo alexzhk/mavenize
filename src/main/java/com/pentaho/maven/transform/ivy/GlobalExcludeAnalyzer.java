@@ -71,7 +71,7 @@ public class GlobalExcludeAnalyzer {
 
     private Map<String, List<String>> getListMavenTree(SubFolder subFolder) throws IOException {
 
-        Path path = Paths.get(folder.toString(), IvuRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase(), IvuRunner.TEMP_MAVEN_TREE_TXT);
+        Path path = Paths.get(folder.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase(), IvyRunner.TEMP_MAVEN_TREE_TXT);
         List<String> mavenDirtyTree;
         List<String> mavenTree;
         Map<String, List<String>> map = new HashMap<>();
@@ -100,10 +100,10 @@ public class GlobalExcludeAnalyzer {
 
         Map<String, List<String>> map;
 
-        Path path = Paths.get(folder.toString(), IvuRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase());
+        Path path = Paths.get(folder.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase());
 
         BashExecutor moduleBashExecutor = new BashExecutor(path);
-        moduleBashExecutor.runMvnDependencyTree(IvuRunner.TEMP_MAVEN_TREE_TXT);
+        moduleBashExecutor.runMvnDependencyTree(IvyRunner.TEMP_MAVEN_TREE_TXT);
 
         map = getListMavenTree(subFolder);
 

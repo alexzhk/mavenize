@@ -145,11 +145,12 @@ public class AssemblyCreator {
 
         if (isTransitive) {
             dependencySet.addContent(new Element("useTransitiveDependencies").setText("true"));
+            dependencySet.addContent(new Element("useTransitiveFiltering").setText("true"));
         } else {
-            dependencySet.addContent(new Element("useTransitiveDependencies").setText("false"));
+            dependencySet.addContent(new Element("useTransitiveDependencies").setText("true"));
+            dependencySet.addContent(new Element("useTransitiveFiltering").setText("false"));
         }
 
-        dependencySet.addContent(new Element("useTransitiveFiltering").setText("false"));
 
         Element includes = new Element("includes");
 
@@ -176,7 +177,7 @@ public class AssemblyCreator {
         Element dependencySetFalse;
         Element dependencySetTrue;
 
-        String path = Paths.get(this.path.toString(), IvuRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase(), IvuRunner.ASSEMBLY_XML).toString();
+        String path = Paths.get(this.path.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase(), IvyRunner.ASSEMBLY_XML).toString();
 
         map = createIncludesSection(scope);
 

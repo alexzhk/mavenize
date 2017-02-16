@@ -6,7 +6,6 @@ import com.pentaho.maven.transform.FileUtils;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,7 +27,7 @@ public class DependencyScope implements Scope {
 
     public void createTempFolder() throws IOException {
 
-        Path temp = Paths.get(folder.toString(), IvuRunner.TEMP_MVN_SHIM_FOLDER);
+        Path temp = Paths.get(folder.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER);
 
         Path def = Paths.get(temp.toString(), SubFolder.DEFAULT.name().toLowerCase());
         Path client = Paths.get(temp.toString(), SubFolder.CLIENT.name().toLowerCase());

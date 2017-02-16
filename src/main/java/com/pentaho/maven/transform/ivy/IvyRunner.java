@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * Created by Aliaksandr_Zhuk on 12/25/2016.
  */
-public class IvuRunner {
+public class IvyRunner {
 
     public static final String IVY_XML = "ivy.xml";
     public static final String POM_XML = "pom.xml";
@@ -26,18 +26,20 @@ public class IvuRunner {
 
     public static void main(String[] args) throws JDOMException, IOException {
 
-        String shimName = "mapr510";
+        String shimName = "cdh58";
 
+        new IvyRunner().generatePomsAssembliesForScopes(Paths.get(args[0], shimName));
+
+    }
+
+    public void generatePomsAssembliesForScopes(Path shimPath) throws JDOMException, IOException {
+        String shimName = shimPath.getFileName().toString();
         Map<SubTagType, List<Element>> map;
         Map<Scopes, Map<Boolean, List<ComplexArtifact>>> scopesMap = new HashMap<>();
-
-        Path path = Paths.get(args[0]);
-        Path ivyPath = Paths.get(args[0], IVY_XML);
-        Path propertyPath = Paths.get(args[0], BUILD_PROPERTIES);
-
         DomManipulator manipulator = new DomManipulator();
+        Path ivyPath = Paths.get(shimPath.toString(), IVY_XML);
         manipulator.getRootElement(ivyPath);
-
+        Path propertyPath = Paths.get(shimPath.toString(), BUILD_PROPERTIES);
         IvyParser parser = new IvyParser(manipulator);
 
         map = parser.getSubElements();
@@ -46,21 +48,20 @@ public class IvuRunner {
 
         scopesMap = parser.splitElementsByScope(map.get(SubTagType.DEPENDENCY));
 
-        DependencyScope dep = new DependencyScope(scopesMap, Paths.get(args[0]));
+        DependencyScope dep = new DependencyScope(scopesMap, shimPath);
         dep.createTempFolder();
 
-        PomCreator pom = new PomCreator(dep, path);
+        PomCreator pom = new PomCreator(dep, shimPath);
 
         pom.createPom(Scopes.DEFAULT, SubFolder.DEFAULT);
         pom.createPom(Scopes.CLIENT, SubFolder.CLIENT);
         pom.createPom(Scopes.PMR, SubFolder.PMR);
         pom.createPom(Scopes.TEST, SubFolder.TEST);
 
-        AssemblyCreator assembly = new AssemblyCreator(dep, path);
+        AssemblyCreator assembly = new AssemblyCreator(dep, shimPath);
 
         assembly.createAssembly(Scopes.DEFAULT, SubFolder.DEFAULT, shimName);
         assembly.createAssembly(Scopes.CLIENT, SubFolder.CLIENT, shimName);
         assembly.createAssembly(Scopes.PMR, SubFolder.PMR, shimName);
-
     }
 }

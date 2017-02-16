@@ -61,6 +61,27 @@
                   <outputDirectory>${oss.license.directory}</outputDirectory>
                   <includes>*${shim.name}*</includes>
                 </artifactItem>
+                <artifactItem>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-${shim.name}-pmr</artifactId>
+                  <type>zip</type>
+                  <overWrite>false</overWrite>
+                  <outputDirectory>/lib</outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-${shim.name}-client</artifactId>
+                  <type>zip</type>
+                  <overWrite>false</overWrite>
+                  <outputDirectory>/lib</outputDirectory>
+                </artifactItem>
+                <artifactItem>
+                  <groupId>org.pentaho</groupId>
+                  <artifactId>pentaho-hadoop-shims-${shim.name}-default</artifactId>
+                  <type>zip</type>
+                  <overWrite>false</overWrite>
+                  <outputDirectory>/lib</outputDirectory>
+                </artifactItem>
               </artifactItems>
             </configuration>
           </execution>

@@ -1,8 +1,7 @@
 package com.pentaho.maven.transform;
 
-import com.pentaho.maven.transform.assembly.AssemblyGenerator;
+import com.pentaho.maven.transform.ivy.IvyRunner;
 import com.pentaho.maven.transform.xml.XmlUtils;
-import com.pentaho.maven.transform.xml.XmlUtilsJDom1;
 import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
 import com.pentaho.maven.transform.xml.condition.ElementWithAttributeCondition;
 import com.pentaho.maven.transform.xml.condition.ElementWithChildValueInParentPathCondition;
@@ -88,7 +87,7 @@ public class MainRunner {
         }
 
         MainRunner mainRunner = new MainRunner(args[0], args[1]);
-        String shimName = "emr52";
+        String shimName = "cdh58";
         mainRunner.runForShim(shimName);
     }
 
@@ -288,29 +287,50 @@ public class MainRunner {
 
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed, URISyntaxException {
         String shimName = modulePath.getFileName().toString();
-        moduleBashExecutor = new BashExecutor(modulePath);
-        prepareActions(modulePath);
-        PropertyReader propertyReader = new PropertyReader(modulePath);
-        propertyReader.setOssLicenseFalse();
-        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
-        XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
-        runTransferGoal(modulePath);
-
-        removeFirstComment(modulePath);
-        removeDuplicateDeps(modulePath);
-
-        addAssemblySectionForShim(modulePath);
+//        moduleBashExecutor = new BashExecutor(modulePath);
+//        prepareActions(modulePath);
+//        PropertyReader propertyReader = new PropertyReader(modulePath);
+//        propertyReader.setOssLicenseFalse();
+//        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
+//        XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
+//        runTransferGoal(modulePath);
+//
+//        removeFirstComment(modulePath);
+//        removeDuplicateDeps(modulePath);
+//
+//        addAssemblySectionForShim(modulePath);
         //runScriptAssemblyGenerating(modulePath);
 //
-        AssemblyGenerator assembly = new AssemblyGenerator(modulePath);
-        assembly.createTrees();
+//        AssemblyGenerator assembly = new AssemblyGenerator(modulePath);
+//        assembly.createTrees();
         createStructureShim(modulePath, modulePath);
+
+
+        //here new
+        //folder temp - we have client default, pmr
+        //create 3 assembly modules - client default pmr
+        //old assembly - just unpack 3 artifacts, separate assembly with jar,
+
         Path shimReactorDir = Paths.get(outputFolder, SHIMS_FOLDER, shimName);
+        new IvyRunner().generatePomsAssembliesForScopes(modulePath);
+        Path tempFolderAnt = Paths.get(modulePath.toString(), "temp");
+        Path tempFolderMaven = Paths.get(shimReactorDir.toString(), "temp");
+        FileUtils.copy(tempFolderAnt, tempFolderMaven);
+        generateAssemblyScope(shimReactorDir, "default");
+        generateAssemblyScope(shimReactorDir, "client");
+        generateAssemblyScope(shimReactorDir, "pmr");
+
+        //make impl only import default client pmr
+        //main assembly - package should unpack assembly package from default, client, pmr,
+        //generate assembly ourselves - only jar , configs include,
+
+
+        //here new
         //move assembly to assembly artifact
         Path assemblyDirectory = Paths.get(shimReactorDir.toString(), ASSEMBLIES_ARTIFACT_DIRECTORY, shimName + "-shim");
         moveGenerateAssembly(modulePath, assemblyDirectory);
         Path jarDirectory = Paths.get(outputFolder, SHIMS_FOLDER, shimName, IMPL_ARTIFACT_DIRECTORY);
-        movePomToJarArtifact(modulePath, jarDirectory);
+        movePomToDestFolder(modulePath, jarDirectory);
 
         //create pom for cdh57 reactor project - some pom prepared - some vars
         PomUtils.parseAndSavePom("pom_shim_reactor_template.xml", modulePath.getFileName().toString(), shimReactorDir);
@@ -345,7 +365,26 @@ public class MainRunner {
 //        DirectoryComparator.runCompareForShim(modulePath, moduleBashExecutor);
     }
 
-    private Path movePomToJarArtifact(Path modulePath, Path jarDirectory) throws IOException {
+    private void generateAssemblyScope(Path modulePath, String scopeName) throws IOException, JDOMException, ShimCannotBeProcessed {
+        String shimName = modulePath.getFileName().toString();
+        Path scopeTempFolder = Paths.get(modulePath.toString(), "temp", scopeName);
+
+        Path scopeDestFolder = Paths.get(modulePath.toString(), scopeName);
+
+        if (!Files.exists(scopeDestFolder)) {
+            Files.createDirectory(scopeDestFolder);
+        }
+        //version update
+        createSourceDirectories(scopeDestFolder);
+        moveGenerateAssembly(scopeTempFolder, scopeDestFolder);
+        movePomToDestFolder(scopeTempFolder, scopeDestFolder);
+        VersionGenerator.generatePropertyVersionSection(scopeDestFolder);
+
+        addAssemblySectionForShim(scopeDestFolder);
+        addParentSection(scopeDestFolder, shimName);
+    }
+
+    private Path movePomToDestFolder(Path modulePath, Path jarDirectory) throws IOException {
         //move pom to jar artifact
         Path targetPomPath = Paths.get(jarDirectory.toString(), POM_XML);
         if (!Files.exists(targetPomPath)) {
@@ -389,7 +428,7 @@ public class MainRunner {
     void moveGenerateAssembly(Path modulePath, Path where) throws ShimCannotBeProcessed, IOException {
         String shimName = modulePath.getFileName().toString();
         Path fullAssemblyPath = Paths.get(modulePath.toString(), ASSEMBLY_XML);
-        Path targetDescriptorFolder = Paths.get(outputFolder, SHIMS_FOLDER, modulePath.getFileName().toString(), ASSEMBLIES_ARTIFACT_DIRECTORY, shimName + "-shim", DESCRIPTOR_FOLDER);
+        Path targetDescriptorFolder = Paths.get(where.toString(), DESCRIPTOR_FOLDER);
         Path neededFullAssemblyPath = Paths.get(where.toString(), DESCRIPTOR_FOLDER, ASSEMBLY_XML);
         if (!Files.exists(fullAssemblyPath)) {
             String msg = "no assembly generated by some reasons";
