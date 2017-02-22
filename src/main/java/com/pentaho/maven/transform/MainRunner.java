@@ -320,6 +320,10 @@ public class MainRunner {
         generateAssemblyScope(shimReactorDir, "client");
         generateAssemblyScope(shimReactorDir, "pmr");
 
+        //PomUtils.addModuleToModuleList(shimReactorDir, "default");
+        //remove dependencies ?? all
+        //add modules to reactor - cdh58-default, cdh58-client, cdh58-pmr
+
         //make impl only import default client pmr
         //main assembly - package should unpack assembly package from default, client, pmr,
         //generate assembly ourselves - only jar , configs include,

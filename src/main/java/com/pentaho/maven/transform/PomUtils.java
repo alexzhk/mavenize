@@ -2,7 +2,9 @@ package com.pentaho.maven.transform;
 
 import com.pentaho.maven.transform.xml.XmlUtils;
 import org.jdom2.Document;
+import org.jdom2.Element;
 import org.jdom2.JDOMException;
+import org.jdom2.Namespace;
 import org.jdom2.filter.ElementFilter;
 
 import java.io.FileOutputStream;
@@ -11,6 +13,7 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 /**
  * Created by Vasilina_Terehova on 1/9/2017.
@@ -30,6 +33,19 @@ public class PomUtils {
         fileOutputStream.write(pom.replace("${module_name}", moduleName).getBytes());
         fileOutputStream.close();
         //new BufferedInputStream()
+    }
+
+    public static void addModuleToModuleList(Path shimPath, String moduleName) throws JDOMException, IOException {
+        String pomShimReactorFile = Paths.get(shimPath.toString(), MainRunner.POM_XML).toString();
+        Document documentFromFile = XmlUtils.getDocumentFromFile(pomShimReactorFile);
+        Namespace rootElementScope = documentFromFile.getRootElement().getNamespace();
+        List<Element> modules = documentFromFile.getRootElement().getContent(new ElementFilter("modules"));
+        if (modules.size() > 0) {
+            Element moduleElement = new Element("module", rootElementScope);
+            moduleElement.setText(moduleName);
+            modules.get(0).addContent(moduleElement);
+        }
+        XmlUtils.outputDoc(documentFromFile, pomShimReactorFile);
     }
 
 }
