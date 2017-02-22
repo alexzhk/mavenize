@@ -20,9 +20,10 @@ import java.util.*;
  */
 public class VersionGenerator {
 
-    private static String[] excludedGroupIds = new String[] {"org.pentaho", "pentaho", "pentaho-kettle" };
-    private static String[] excludedArtifactsIds = new String[] {"hamcrest-core", "mockito", "junit", "jug-lgpl", "metrics-core", "commons-lang" };
-    private static String[] makeArtifactNameOfPropertyIds = new String[] {"hadoop2-windows-patch", "pentaho-hadoop-shims-common-pig-shim-1.1", "pentaho-hadoop-shims-common-pig-shim-1.0"};
+    private static String[] excludedGroupIds = new String[]{"org.pentaho", "pentaho", "pentaho-kettle"};
+    private static String[] excludedArtifactsIds = new String[]{"hamcrest-core", "mockito-all", "junit", "jug-lgpl", "metrics-core", "commons-lang", "pentaho-hadoop-shims-common-pig-shim-1.1", "pentaho-hadoop-shims-common-pig-shim-1.0"};
+    private static String[] makeArtifactNameOfPropertyIds = new String[]{"hadoop2-windows-patch"};
+    private static String[] settingProjectVersion = new String[]{"pentaho-hadoop-shims-common-pig-shim-1.1", "pentaho-hadoop-shims-common-pig-shim-1.0"};
 
     public static final String IVY_XML = "ivy.xml";
 
@@ -35,6 +36,7 @@ public class VersionGenerator {
         List<String> excludedGroupIdList = Arrays.asList(excludedGroupIds);
         List<String> excludedArtifactList = Arrays.asList(excludedArtifactsIds);
         List<String> makeArtifactNameOfPropertyIdList = Arrays.asList(makeArtifactNameOfPropertyIds);
+        List<String> settingProjectVersionList = Arrays.asList(settingProjectVersion);
         Optional<Element> properties = rootElement.getContent(new ElementFilter("properties")).stream().findFirst();
         if (!properties.isPresent()) {
             List<Element> dependencyList = rootElement.getContent(new ElementFilter("dependencies")).get(0).getChildren();
@@ -53,11 +55,12 @@ public class VersionGenerator {
                 }
                 if (artifact.getArtifactId().equals("pentaho-hadoop-shims-api-test")) {
                     element.getContent(new ElementFilter("artifactId")).get(0).setText("pentaho-hadoop-shims-api");
-                    Element  classifier1 = new Element("classifier", "http://maven.apache.org/POM/4.0.0");
+                    Element classifier1 = new Element("classifier", "http://maven.apache.org/POM/4.0.0");
                     classifier1.setText("tests");
                     element.addContent(classifier1);
                 }
-                if (makeArtifactNameOfPropertyIdList.contains(artifact.getArtifactId()) || (!excludedGroupIdList.contains(groupId1) && !excludedArtifactList.contains(artifact.getArtifactId()))) {
+
+                if (makeArtifactNameOfPropertyIdList.contains(artifact.getArtifactId()) || settingProjectVersionList.contains(artifact.getArtifactId()) || (!excludedGroupIdList.contains(groupId1) && !excludedArtifactList.contains(artifact.getArtifactId()))) {
                     artifactElementMap.put(artifact, element);
                     boolean groupFound = false;
                     if (map.isEmpty()) {
@@ -95,31 +98,33 @@ public class VersionGenerator {
 
 
             StringBuffer propertiesBuffer = new StringBuffer("<properties>\n");
-            Set<String> groupIds = new HashSet<>();
+            Set<String> artifactIds = new HashSet<>();
             for (Map.Entry<String, Map<String, List<Artifact>>> entries : versions.entrySet()) {
                 String versionValue = entries.getKey();
                 Map<String, List<Artifact>> value = entries.getValue();
                 for (Map.Entry<String, List<Artifact>> groupsMap : value.entrySet()) {
+                    String artifactId = groupsMap.getValue().get(0).getArtifactId();
                     String groupId = groupsMap.getValue().get(0).getGroupId();
-                    int i =1;
-                    while (groupIds.contains(groupId)) {
-                        groupId = groupId + (i + 1);
-                        System.out.println(groupId);
-                    }
-                    String shortVersionString = groupId + ".version";
-                    String versionString = "${" + shortVersionString + "}";
-                    String firstArtifactName = groupsMap.getValue().get(0).getArtifactId();
-                    if (makeArtifactNameOfPropertyIdList.contains(firstArtifactName)) {
-                        groupId = firstArtifactName;
+
+                    String shortVersionString = artifactId + ".version";
+
+                    if (artifactIds.contains(artifactId) || groupsMap.getValue().size() > 1) {
                         shortVersionString = groupId + ".version";
-                        versionString = "${"+shortVersionString+"}";
                     }
-                    propertiesBuffer.append("<").append(shortVersionString).append(">").append(versionValue).append("</").append(shortVersionString).append(">\r\n");
-                    for (Artifact artifact : groupsMap.getValue()) {
+
+                    String versionString = "${" + shortVersionString + "}";
+
+                    if(!settingProjectVersionList.contains(artifactId)) {
+                        propertiesBuffer.append("<").append(shortVersionString).append(">").append(versionValue).append("</").append(shortVersionString).append(">\r\n");
+                    }else{
+
+                        versionString = "${project.version}";
+                    }
+                        for (Artifact artifact : groupsMap.getValue()) {
                         artifactElementMap.get(artifact).getContent(new ElementFilter("version")).get(0).setText(versionString);
                     }
-                    if (!groupIds.contains(groupId)) {
-                        groupIds.add(groupId);
+                    if (!artifactIds.contains(artifactId)) {
+                        artifactIds.add(artifactId);
                     } else {
                         System.out.println("AHTUNG!!!! ERROR!!!! 2 group ids found");
                         throw new IllegalArgumentException("2 equal group ids found");
