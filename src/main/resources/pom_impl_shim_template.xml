@@ -5,7 +5,7 @@
 
   <parent>
     <groupId>org.pentaho</groupId>
-    <artifactId>pentaho-hadoop-shims-${module_name}</artifactId>
+    <artifactId>pentaho-hadoop-shims-${module_name}-reactor</artifactId>
     <version>7.1-SNAPSHOT</version>
   </parent>
 
@@ -18,19 +18,19 @@
       <groupId>org.pentaho</groupId>
       <artifactId>pentaho-hadoop-shims-${module_name}-scope-client</artifactId>
       <version>${project.version}</version>
-      <scope>import</scope>
+      <type>pom</type>
     </dependency>
     <dependency>
       <groupId>org.pentaho</groupId>
       <artifactId>pentaho-hadoop-shims-${module_name}-scope-pmr</artifactId>
       <version>${project.version}</version>
-      <scope>import</scope>
+      <type>pom</type>
     </dependency>
     <dependency>
       <groupId>org.pentaho</groupId>
       <artifactId>pentaho-hadoop-shims-${module_name}-scope-default</artifactId>
       <version>${project.version}</version>
-      <scope>import</scope>
+      <type>pom</type>
     </dependency>
     <!--here test dependencies-->
   </dependencies>

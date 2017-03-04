@@ -1,6 +1,6 @@
 <assembly>
     <id>plugin</id>
-    <baseDirectory>cdh58</baseDirectory>
+    <baseDirectory>${module_name}</baseDirectory>
     <formats>
         <format>zip</format>
     </formats>
@@ -13,6 +13,10 @@
             <directory>${oss.license.directory}</directory>
             <outputDirectory>/</outputDirectory>
         </fileSet>
+        <fileSet>
+            <directory>${project.build.directory}/${module_name}</directory>
+            <outputDirectory>/</outputDirectory>
+        </fileSet>
     </fileSets>
     <dependencySets>
         <dependencySet>
@@ -20,7 +24,7 @@
             <useTransitiveDependencies>false</useTransitiveDependencies>
             <useTransitiveFiltering>false</useTransitiveFiltering>
             <includes>
-                <include>org.pentaho:pentaho-hadoop-shims-cdh58</include>
+                <include>org.pentaho:pentaho-hadoop-shims-${module_name}</include>
             </includes>
         </dependencySet>
     </dependencySets>

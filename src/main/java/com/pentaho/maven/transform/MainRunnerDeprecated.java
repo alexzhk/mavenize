@@ -136,7 +136,7 @@ public class MainRunnerDeprecated {
         Path assembliesDirectory = Paths.get(shimPath.toString(), ASSEMBLIES_ARTIFACT_DIRECTORY);
         Path newAssemblyPath = Paths.get(assembliesDirectory.toString(), shimName + "-shim");
 
-        mainRunner.moveGenerateAssembly(placeWithFixedPomAssembly, newAssemblyPath);
+        mainRunner.moveGenerateAssembly(placeWithFixedPomAssembly, newAssemblyPath, true);
         //replace dependencies in pom
 
         String implArtifactFile = Paths.get(newImplArtifactPath.toString(), POM_XML).toString();

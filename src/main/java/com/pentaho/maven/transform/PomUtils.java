@@ -35,18 +35,18 @@ public class PomUtils {
     }
 
     public static void parseAndSavePom(String pomNameInResources, Map<String, String> vars, String moduleName, Path whereSave) throws IOException, URISyntaxException {
+        parseAndSavePom(pomNameInResources, vars, moduleName, whereSave, MainRunner.POM_XML);
+    }
+
+    public static void parseAndSavePom(String pomNameInResources, Map<String, String> vars, String moduleName, Path whereSave, String fileName) throws IOException, URISyntaxException {
         vars.put("module_name", moduleName);
         String pom = new String(Files.readAllBytes(Paths.get(MainRunner.class.getClassLoader().getResource(pomNameInResources).toURI())));
-        FileOutputStream fileOutputStream = new FileOutputStream(Paths.get(whereSave.toString(), MainRunner.POM_XML).toString());
-        vars.entrySet().stream().forEach(stringStringEntry -> {
-            try {
-                fileOutputStream.write(pom.replace("${" + stringStringEntry.getKey() + "}", stringStringEntry.getValue()).getBytes());
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
+        FileOutputStream fileOutputStream = new FileOutputStream(Paths.get(whereSave.toString(), fileName).toString());
+        for (Map.Entry<String, String> entry : vars.entrySet()) {
+            pom = pom.replace("${" + entry.getKey() + "}", entry.getValue());
+        }
+        fileOutputStream.write(pom.getBytes());
         fileOutputStream.close();
-        //new BufferedInputStream()
     }
 
     public static void addModuleToModuleList(Path shimPath, String moduleName) throws JDOMException, IOException {

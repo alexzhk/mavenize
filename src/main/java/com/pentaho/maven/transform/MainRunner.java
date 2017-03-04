@@ -92,6 +92,7 @@ public class MainRunner {
         MainRunner mainRunner = new MainRunner(args[0], args[1]);
         String shimName = "cdh58";
         mainRunner.runForShim(shimName);
+        //DirectoryComparator.compare("cdh58", "D:\\1\\p-h-s1\\cdh58\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims2\\shims\\cdh58\\assemblies\\cdh58-shim\\target\\");
     }
 
     public void runForShim(String shimName) throws JDOMException, URISyntaxException, ShimCannotBeProcessed, IOException {
@@ -130,9 +131,9 @@ public class MainRunner {
     void addDependencies(Path pomToAdd, Path additionalDependenciesPom) throws IOException, URISyntaxException, JDOMException {
         String implArtifactFile = Paths.get(pomToAdd.toString(), POM_XML).toString();
         Document implDoc = XmlUtils.getDocumentFromFile(implArtifactFile);
-        Document depenenciesPom = XmlUtils.getDocumentFromFile(Paths.get(pomToAdd.toString(), POM_XML).toString());
-        Element implDependenciesElement = depenenciesPom.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
-        Element dependenciesElement = depenenciesPom.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        Document dependenciesPom = XmlUtils.getDocumentFromFile(Paths.get(additionalDependenciesPom.toString(), POM_XML).toString());
+        Element implDependenciesElement = implDoc.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        Element dependenciesElement = dependenciesPom.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
         dependenciesElement.detach();
         List<Element> children = dependenciesElement.getChildren();
         ArrayList<Element> elements = new ArrayList<>(children);
@@ -140,6 +141,7 @@ public class MainRunner {
             dependenciesElement.removeContent(child);
             implDependenciesElement.addContent(child);
         }
+        XmlUtils.outputDoc(implDoc, implArtifactFile);
     }
 
     void addCommonDependencies(Path antShimFolder) throws IOException, URISyntaxException, JDOMException {
@@ -306,21 +308,21 @@ public class MainRunner {
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed, URISyntaxException {
         String shimName = modulePath.getFileName().toString();
         moduleBashExecutor = new BashExecutor(modulePath);
-//        prepareActions(modulePath);
-//        PropertyReader propertyReader = new PropertyReader(modulePath);
-//        propertyReader.setOssLicenseFalse();
-//        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
-//        XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
-//        runTransferGoal(modulePath);
-//
-//        removeFirstComment(modulePath);
-//        removeDuplicateDeps(modulePath);
-//
-//        addAssemblySectionForShim(modulePath);
-//        //runScriptAssemblyGenerating(modulePath);
-//
-//        AssemblyGenerator assembly = new AssemblyGenerator(modulePath);
-//        assembly.createTrees();
+        prepareActions(modulePath);
+        PropertyReader propertyReader = new PropertyReader(modulePath);
+        propertyReader.setOssLicenseFalse();
+        addTransferGoalForAnt(modulePath.toString(), BUILD_XML);
+        XmlUtilsJDom1.fixIvyWithClassifier(modulePath);
+        runTransferGoal(modulePath);
+
+        removeFirstComment(modulePath);
+        removeDuplicateDeps(modulePath);
+
+        addAssemblySectionForShim(modulePath);
+        //runScriptAssemblyGenerating(modulePath);
+
+        AssemblyGenerator assembly = new AssemblyGenerator(modulePath);
+        assembly.createTrees();
         createStructureShim(modulePath, modulePath);
 
 
@@ -346,10 +348,11 @@ public class MainRunner {
         //here new
         //move assembly to assembly artifact
         Path assemblyDirectory = Paths.get(shimReactorDir.toString(), ASSEMBLIES_ARTIFACT_DIRECTORY, shimName + "-shim");
-        moveGenerateAssembly(modulePath, assemblyDirectory);
+        moveGenerateAssembly(modulePath, assemblyDirectory, false);
         Path jarDirectory = Paths.get(outputFolder, SHIMS_FOLDER, shimName, IMPL_ARTIFACT_DIRECTORY);
         PomUtils.parseAndSavePom("pom_impl_shim_template.xml", shimName, jarDirectory);
         addDependencies(jarDirectory, Paths.get(tempFolderMaven.toString(), "test"));
+        addDependencies(jarDirectory, Paths.get(tempFolderMaven.toString(), "provided"));
         //movePomToDestFolder(modulePath, jarDirectory);
         //our pom for impl here - only test dependencies
 
@@ -415,9 +418,9 @@ public class MainRunner {
             HashMap<String, String> vars = new HashMap<>();
             vars.put("scope", scopeName);
             PomUtils.parseAndSavePom("pom_shim_assembly_scope_template.xml", vars, shimName, scopeAssemblyFolder);
-            moveGenerateAssembly(scopeTempFolder, scopeAssemblyFolder);
+            moveGenerateAssembly(scopeTempFolder, scopeAssemblyFolder, true);
             //PomUtils.addModuleToModuleList(assembliesFolder, scopeName);
-            addAssemblySectionForShim(scopeDestFolder);
+            addAssemblySectionForShim(scopeAssemblyFolder);
         }
     }
 
@@ -462,7 +465,7 @@ public class MainRunner {
                 , new ElementExistCondition(), new AfterChildInserter("modelVersion"), "");
     }
 
-    void moveGenerateAssembly(Path modulePath, Path where) throws ShimCannotBeProcessed, IOException {
+    void moveGenerateAssembly(Path modulePath, Path where, boolean copy) throws ShimCannotBeProcessed, IOException, URISyntaxException {
         String shimName = modulePath.getFileName().toString();
         Path fullAssemblyPath = Paths.get(modulePath.toString(), ASSEMBLY_XML);
         Path targetDescriptorFolder = Paths.get(where.toString(), DESCRIPTOR_FOLDER);
@@ -477,7 +480,11 @@ public class MainRunner {
         }
         System.out.println(fullAssemblyPath);
         System.out.println(neededFullAssemblyPath);
-        FileUtils.moveFileReplace(fullAssemblyPath, neededFullAssemblyPath);
+        if (copy) {
+            FileUtils.moveFileReplace(fullAssemblyPath, neededFullAssemblyPath);
+        } else {
+            PomUtils.parseAndSavePom("main_assembly.xml", new HashMap<>(), shimName, targetDescriptorFolder, MainRunner.ASSEMBLY_XML);
+        }
         rootFolderExecutor.gitAdd(neededFullAssemblyPath);
     }
 

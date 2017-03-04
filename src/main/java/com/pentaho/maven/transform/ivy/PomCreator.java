@@ -173,8 +173,8 @@ public class PomCreator {
 
         //map = createDependencySection(scope);
 
-        String shimName = subFolder.name().toLowerCase();
-        Path path = Paths.get(this.path.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER, shimName, IvyRunner.POM_XML);
+        String shimName =  this.path.getFileName().toString();
+        Path path = Paths.get(this.path.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase(), IvyRunner.POM_XML);
 
         map = createDependencySection(scope);
 
@@ -195,10 +195,10 @@ public class PomCreator {
         if (!dependencyList.isEmpty()) {
 
             Model model = new Model();
-            model.setGroupId("pentaho");
+            model.setGroupId("org.pentaho");
             model.setArtifactId("pentaho-hadoop-shims-" + shimName + "-scope-" + scope.toString().toLowerCase());
             model.setVersion("7.1-SNAPSHOT");
-            model.setPackaging("jar");
+            model.setPackaging("pom");
             model.setModelVersion("4.0.0");
             model.setDependencies(dependencyList);
 
