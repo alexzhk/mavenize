@@ -7,6 +7,7 @@ public enum SubFolder {
 
     DEFAULT,
     CLIENT,
+    PROVIDED,
     PMR,
     TEST
 
