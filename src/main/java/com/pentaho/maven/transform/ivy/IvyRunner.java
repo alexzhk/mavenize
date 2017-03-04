@@ -26,7 +26,7 @@ public class IvyRunner {
 
     public static void main(String[] args) throws JDOMException, IOException {
 
-        String shimName = "cdh58";
+        String shimName = "cdh510";
 
         new IvyRunner().generatePomsAssembliesForScopes(Paths.get(args[0], shimName));
 
@@ -57,6 +57,7 @@ public class IvyRunner {
         pom.createPom(Scopes.CLIENT, SubFolder.CLIENT);
         pom.createPom(Scopes.PMR, SubFolder.PMR);
         pom.createPom(Scopes.TEST, SubFolder.TEST);
+        pom.createPom(Scopes.PROVIDED, SubFolder.PROVIDED);
 
         AssemblyCreator assembly = new AssemblyCreator(dep, shimPath);
 

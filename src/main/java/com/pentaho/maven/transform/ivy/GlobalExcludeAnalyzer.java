@@ -33,6 +33,7 @@ public class GlobalExcludeAnalyzer {
         List<Exclusion> clientList = new ArrayList<>();
         List<Exclusion> pmrList = new ArrayList<>();
         List<Exclusion> testList = new ArrayList<>();
+        List<Exclusion> providedList = new ArrayList<>();
         Exclusion exclusion;
         String[] arr;
 
@@ -55,6 +56,8 @@ public class GlobalExcludeAnalyzer {
                     pmrList.add(exclusion);
                 } else if (s.equals(Scopes.TEST.name().toLowerCase())) {
                     testList.add(exclusion);
+                }else if (s.equals(Scopes.PROVIDED.name().toLowerCase())) {
+                    providedList.add(exclusion);
                 }
 
             }
@@ -64,7 +67,8 @@ public class GlobalExcludeAnalyzer {
         map.put(Scopes.DEFAULT, defaultList);
         map.put(Scopes.CLIENT, clientList);
         map.put(Scopes.PMR, pmrList);
-        map.put(Scopes.TEST, pmrList);
+        map.put(Scopes.TEST, testList);
+        map.put(Scopes.PROVIDED, providedList);
 
     }
 

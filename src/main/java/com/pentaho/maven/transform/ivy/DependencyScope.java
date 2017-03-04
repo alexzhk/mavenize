@@ -33,6 +33,7 @@ public class DependencyScope implements Scope {
         Path client = Paths.get(temp.toString(), SubFolder.CLIENT.name().toLowerCase());
         Path pmr = Paths.get(temp.toString(), SubFolder.PMR.name().toLowerCase());
         Path test = Paths.get(temp.toString(), SubFolder.TEST.name().toLowerCase());
+        Path provided = Paths.get(temp.toString(), SubFolder.PROVIDED.name().toLowerCase());
         
         FileUtils.removeFile(temp);
         FileUtils.createFolder(temp);
@@ -41,6 +42,7 @@ public class DependencyScope implements Scope {
         FileUtils.createFolder(client);
         FileUtils.createFolder(pmr);
         FileUtils.createFolder(test);
+        FileUtils.createFolder(provided);
 
     }
 
