@@ -13,6 +13,9 @@
   <packaging>pom</packaging>
 
   <modules>
+    <module>client</module>
+    <module>pmr</module>
+    <module>default</module>
     <module>${module_name}-shim</module>
   </modules>
 </project>

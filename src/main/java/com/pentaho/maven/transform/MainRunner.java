@@ -1,7 +1,9 @@
 package com.pentaho.maven.transform;
 
+import com.pentaho.maven.transform.assembly.AssemblyGenerator;
 import com.pentaho.maven.transform.ivy.IvyRunner;
 import com.pentaho.maven.transform.xml.XmlUtils;
+import com.pentaho.maven.transform.xml.XmlUtilsJDom1;
 import com.pentaho.maven.transform.xml.condition.ElementExistCondition;
 import com.pentaho.maven.transform.xml.condition.ElementWithAttributeCondition;
 import com.pentaho.maven.transform.xml.condition.ElementWithChildValueInParentPathCondition;
@@ -12,6 +14,7 @@ import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
 import org.jdom2.Namespace;
+import org.jdom2.filter.ContentFilter;
 import org.jdom2.filter.ElementFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,6 +124,21 @@ public class MainRunner {
                     }
                 }
             });
+        }
+    }
+
+    void addDependencies(Path pomToAdd, Path additionalDependenciesPom) throws IOException, URISyntaxException, JDOMException {
+        String implArtifactFile = Paths.get(pomToAdd.toString(), POM_XML).toString();
+        Document implDoc = XmlUtils.getDocumentFromFile(implArtifactFile);
+        Document depenenciesPom = XmlUtils.getDocumentFromFile(Paths.get(pomToAdd.toString(), POM_XML).toString());
+        Element implDependenciesElement = depenenciesPom.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        Element dependenciesElement = depenenciesPom.getRootElement().getContent(new ElementFilter("dependencies")).get(0);
+        dependenciesElement.detach();
+        List<Element> children = dependenciesElement.getChildren();
+        ArrayList<Element> elements = new ArrayList<>(children);
+        for (Element child : elements) {
+            dependenciesElement.removeContent(child);
+            implDependenciesElement.addContent(child);
         }
     }
 
@@ -287,7 +305,7 @@ public class MainRunner {
 
     private void runForShim(Path modulePath) throws JDOMException, IOException, ShimCannotBeProcessed, URISyntaxException {
         String shimName = modulePath.getFileName().toString();
-//        moduleBashExecutor = new BashExecutor(modulePath);
+        moduleBashExecutor = new BashExecutor(modulePath);
 //        prepareActions(modulePath);
 //        PropertyReader propertyReader = new PropertyReader(modulePath);
 //        propertyReader.setOssLicenseFalse();
@@ -299,7 +317,7 @@ public class MainRunner {
 //        removeDuplicateDeps(modulePath);
 //
 //        addAssemblySectionForShim(modulePath);
-        //runScriptAssemblyGenerating(modulePath);
+//        //runScriptAssemblyGenerating(modulePath);
 //
 //        AssemblyGenerator assembly = new AssemblyGenerator(modulePath);
 //        assembly.createTrees();
@@ -316,11 +334,7 @@ public class MainRunner {
         Path tempFolderAnt = Paths.get(modulePath.toString(), "temp");
         Path tempFolderMaven = Paths.get(shimReactorDir.toString(), "temp");
         FileUtils.copy(tempFolderAnt, tempFolderMaven);
-        generateAssemblyScope(shimReactorDir, "default");
-        generateAssemblyScope(shimReactorDir, "client");
-        generateAssemblyScope(shimReactorDir, "pmr");
 
-        //PomUtils.addModuleToModuleList(shimReactorDir, "default");
         //remove dependencies ?? all
         //add modules to reactor - cdh58-default, cdh58-client, cdh58-pmr
 
@@ -334,18 +348,27 @@ public class MainRunner {
         Path assemblyDirectory = Paths.get(shimReactorDir.toString(), ASSEMBLIES_ARTIFACT_DIRECTORY, shimName + "-shim");
         moveGenerateAssembly(modulePath, assemblyDirectory);
         Path jarDirectory = Paths.get(outputFolder, SHIMS_FOLDER, shimName, IMPL_ARTIFACT_DIRECTORY);
-        movePomToDestFolder(modulePath, jarDirectory);
+        PomUtils.parseAndSavePom("pom_impl_shim_template.xml", shimName, jarDirectory);
+        addDependencies(jarDirectory, Paths.get(tempFolderMaven.toString(), "test"));
+        //movePomToDestFolder(modulePath, jarDirectory);
+        //our pom for impl here - only test dependencies
 
         //create pom for cdh57 reactor project - some pom prepared - some vars
         PomUtils.parseAndSavePom("pom_shim_reactor_template.xml", modulePath.getFileName().toString(), shimReactorDir);
 
         //here remove assembly section from pom in jar artifact - make function to find by condition, remove
-        XmlUtils.deleteElement(Paths.get(jarDirectory.toString(), POM_XML).toString(), new ElementWithChildValueInParentPathCondition(new String[]{"build", "plugins"}, "artifactId"), Constants.ASSEMBLY_PLUGIN);
+        //XmlUtils.deleteElement(Paths.get(jarDirectory.toString(), POM_XML).toString(), new ElementWithChildValueInParentPathCondition(new String[]{"build", "plugins"}, "artifactId"), Constants.ASSEMBLY_PLUGIN);
 
         //add element
 
         //create pom file assembly from some template constant with parent to cdh57 - velocity parsing or replace some vars
         PomUtils.parseAndSavePom("pom_shim_assembly_template.xml", modulePath.getFileName().toString(), assemblyDirectory);
+
+        //add common, import of common to every scope
+        //generateAssemblyScope(shimReactorDir, "common"); - condition, no adding to assembly
+        generateAssemblyScope(shimReactorDir, "default");
+        generateAssemblyScope(shimReactorDir, "client");
+        generateAssemblyScope(shimReactorDir, "pmr");
 
         //add structure to git
         addToGithub(jarDirectory);
@@ -366,10 +389,11 @@ public class MainRunner {
         removeTransferGoalTarget(modulePath);
         addToGithub(modulePath);
         removeGithub(modulePath);
+        PomUtils.addModuleToModuleList(shimReactorDir.getParent(), shimName);
 //        DirectoryComparator.runCompareForShim(modulePath, moduleBashExecutor);
     }
 
-    private void generateAssemblyScope(Path modulePath, String scopeName) throws IOException, JDOMException, ShimCannotBeProcessed {
+    private void generateAssemblyScope(Path modulePath, String scopeName) throws IOException, JDOMException, ShimCannotBeProcessed, URISyntaxException {
         String shimName = modulePath.getFileName().toString();
         Path scopeTempFolder = Paths.get(modulePath.toString(), "temp", scopeName);
 
@@ -380,12 +404,21 @@ public class MainRunner {
         }
         //version update
         createSourceDirectories(scopeDestFolder);
-        moveGenerateAssembly(scopeTempFolder, scopeDestFolder);
         movePomToDestFolder(scopeTempFolder, scopeDestFolder);
         VersionGenerator.generatePropertyVersionSection(scopeDestFolder);
-
-        addAssemblySectionForShim(scopeDestFolder);
         addParentSection(scopeDestFolder, shimName);
+
+        if (!scopeName.equals("common")) {
+            Path assembliesFolder = Paths.get(modulePath.toString(), ASSEMBLIES_ARTIFACT_DIRECTORY);
+            Path scopeAssemblyFolder = Paths.get(assembliesFolder.toString(), scopeName);
+            createSourceDirectories(scopeAssemblyFolder);
+            HashMap<String, String> vars = new HashMap<>();
+            vars.put("scope", scopeName);
+            PomUtils.parseAndSavePom("pom_shim_assembly_scope_template.xml", vars, shimName, scopeAssemblyFolder);
+            moveGenerateAssembly(scopeTempFolder, scopeAssemblyFolder);
+            //PomUtils.addModuleToModuleList(assembliesFolder, scopeName);
+            addAssemblySectionForShim(scopeDestFolder);
+        }
     }
 
     private Path movePomToDestFolder(Path modulePath, Path jarDirectory) throws IOException {

@@ -1,0 +1,44 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.pentaho</groupId>
+    <artifactId>pentaho-hadoop-shims-${module_name}</artifactId>
+    <version>7.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>pentaho-hadoop-shims-${module_name}-impl</artifactId>
+  <packaging>jar</packaging>
+  <version>7.1-SNAPSHOT</version>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-${module_name}-scope-client</artifactId>
+      <version>${project.version}</version>
+      <scope>import</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-${module_name}-scope-pmr</artifactId>
+      <version>${project.version}</version>
+      <scope>import</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.pentaho</groupId>
+      <artifactId>pentaho-hadoop-shims-${module_name}-scope-default</artifactId>
+      <version>${project.version}</version>
+      <scope>import</scope>
+    </dependency>
+    <!--here test dependencies-->
+  </dependencies>
+
+  <build>
+    <plugins>
+
+    </plugins>
+  </build>
+
+</project>

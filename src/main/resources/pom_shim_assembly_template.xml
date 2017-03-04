@@ -15,7 +15,7 @@
     <dependency>
       <groupId>org.pentaho</groupId>
       <artifactId>pentaho-hadoop-shims-${module_name}</artifactId>
-      <version>7.1-SNAPSHOT</version>
+      <version>${project.version}</version>
     </dependency>
   </dependencies>
 
@@ -63,21 +63,21 @@
                 </artifactItem>
                 <artifactItem>
                   <groupId>org.pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-${shim.name}-pmr</artifactId>
+                  <artifactId>pentaho-hadoop-shims-${shim.name}-scope-pmr</artifactId>
                   <type>zip</type>
                   <overWrite>false</overWrite>
                   <outputDirectory>/lib</outputDirectory>
                 </artifactItem>
                 <artifactItem>
                   <groupId>org.pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-${shim.name}-client</artifactId>
+                  <artifactId>pentaho-hadoop-shims-${shim.name}-scope-client</artifactId>
                   <type>zip</type>
                   <overWrite>false</overWrite>
                   <outputDirectory>/lib</outputDirectory>
                 </artifactItem>
                 <artifactItem>
                   <groupId>org.pentaho</groupId>
-                  <artifactId>pentaho-hadoop-shims-${shim.name}-default</artifactId>
+                  <artifactId>pentaho-hadoop-shims-${shim.name}-scope-default</artifactId>
                   <type>zip</type>
                   <overWrite>false</overWrite>
                   <outputDirectory>/lib</outputDirectory>
