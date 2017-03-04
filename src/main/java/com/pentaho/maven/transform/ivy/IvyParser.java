@@ -175,6 +175,7 @@ public class IvyParser {
         List<ComplexArtifact> clientScope = new ArrayList<>();
         List<ComplexArtifact> pmrScope = new ArrayList<>();
         List<ComplexArtifact> testScope = new ArrayList<>();
+        List<ComplexArtifact> providedScope = new ArrayList<>();
 
         Map<Scopes, List<ComplexArtifact>> map = new HashMap<>();
 
@@ -190,6 +191,8 @@ public class IvyParser {
                 pmrScope.add(artifact);
             } else if (scope.equals(Scopes.TEST.name().toLowerCase())) {
                 testScope.add(artifact);
+            }else if (scope.equals(Scopes.PROVIDED.name().toLowerCase())) {
+                providedScope.add(artifact);
             }
         }
 
@@ -197,6 +200,7 @@ public class IvyParser {
         map.put(Scopes.CLIENT, clientScope);
         map.put(Scopes.PMR, pmrScope);
         map.put(Scopes.TEST, testScope);
+        map.put(Scopes.PROVIDED, providedScope);
 
         return map;
     }
@@ -246,6 +250,7 @@ public class IvyParser {
         mapResult.put(Scopes.CLIENT, groupScopeByTransitive(mapTrue, mapFalse, Scopes.CLIENT));
         mapResult.put(Scopes.PMR, groupScopeByTransitive(mapTrue, mapFalse, Scopes.PMR));
         mapResult.put(Scopes.TEST, groupScopeByTransitive(mapTrue, mapFalse, Scopes.TEST));
+        mapResult.put(Scopes.PROVIDED, groupScopeByTransitive(mapTrue, mapFalse, Scopes.PROVIDED));
 
         return mapResult;
 

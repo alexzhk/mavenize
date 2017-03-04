@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Created by Aliaksandr_Zhuk on 12/29/2016.
@@ -210,6 +211,75 @@ public class PomCreator {
         }
 
     }
+
+
+    public void createCommonPom(Scopes scopeClient, Scopes scopeDefault, SubFolder subFolder) throws FileNotFoundException, UnsupportedEncodingException, IOException {
+
+        Map<Boolean, List<Dependency>> mapClient = new HashMap<>();
+        List<Dependency> dependencyClientList = new ArrayList<>();
+
+        Map<Boolean, List<Dependency>> mapDefault = new HashMap<>();
+        List<Dependency> dependencyDefaultList = new ArrayList<>();
+
+        List<String> clientList = new ArrayList<>();
+        List<String> defaultList = new ArrayList<>();
+        List<String> weHaveInBothScopes = new ArrayList<>();
+
+        //map = createDependencySection(scope);
+
+        Path path = Paths.get(this.path.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase(), IvyRunner.POM_XML);
+
+        mapClient = createDependencySection(scopeClient);
+        for (List<Dependency> list : mapClient.values()) {
+            dependencyClientList.addAll(list);
+        }
+
+        mapDefault = createDependencySection(scopeDefault);
+        for (List<Dependency> list : mapDefault.values()) {
+            dependencyDefaultList.addAll(list);
+        }
+
+        if( !(dependencyClientList.isEmpty() && dependencyDefaultList.isEmpty()) ){
+
+            for(Dependency dependency : dependencyClientList){
+                clientList.add(dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion());
+            }
+
+            for(Dependency dependency : dependencyDefaultList){defaultList.add(dependency.getGroupId() + ":" + dependency.getArtifactId() + ":" + dependency.getVersion());
+            }
+
+
+            weHaveInBothScopes = clientList.stream().filter(s -> defaultList.contains(s)).sorted().collect(Collectors.toList());
+
+        }
+
+        if(!weHaveInBothScopes.isEmpty()){
+
+
+        }
+
+
+
+
+        if (!dependencyClientList.isEmpty()) {
+
+            Model model = new Model();
+            model.setGroupId("pentaho");
+            model.setArtifactId("pentaho-hadoop-shims-" + scopeClient.toString().toLowerCase());
+            model.setVersion("7.1-SNAPSHOT");
+            model.setPackaging("jar");
+            model.setModelVersion("4.0.0");
+            model.setDependencies(dependencyClientList);
+
+            File file = new File(path.toString());
+            OutputStream stream = new FileOutputStream(file);
+            Writer writer = new BufferedWriter(new OutputStreamWriter(stream, "UTF-8"));
+
+            new MavenXpp3Writer().write(writer, model);
+        }
+
+    }
+
 
     public void createPom(Scopes scope, SubFolder subFolder, Object o) throws FileNotFoundException, UnsupportedEncodingException, IOException {
 
