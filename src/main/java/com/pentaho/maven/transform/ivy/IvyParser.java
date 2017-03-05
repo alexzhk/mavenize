@@ -102,7 +102,7 @@ public class IvyParser {
 
             if (scope != null) {
 
-                arr = scope.split(";");
+                arr = scope.split("(;)|(,)");
                 list = splitString(arr, "-");
 
                 String str;
@@ -191,7 +191,13 @@ public class IvyParser {
                 pmrScope.add(artifact);
             } else if (scope.equals(Scopes.TEST.name().toLowerCase())) {
                 testScope.add(artifact);
-            }else if (scope.equals(Scopes.PROVIDED.name().toLowerCase())) {
+            } else if (scope.equals(Scopes.PROVIDED.name().toLowerCase())) {
+                providedScope.add(artifact);
+            } else if (scope.equals("*")) {
+                defScope.add(artifact);
+                clientScope.add(artifact);
+                pmrScope.add(artifact);
+                testScope.add(artifact);
                 providedScope.add(artifact);
             }
         }
@@ -210,8 +216,22 @@ public class IvyParser {
 
         Map<Boolean, List<ComplexArtifact>> map = new HashMap<>();
 
-        map.put(true, mapTrue.get(scope));
-        map.put(false, mapFalse.get(scope));
+        if (mapTrue != null) {
+
+            map.put(true, mapTrue.get(scope));
+        } else {
+            map.put(true, null);
+
+        }
+
+        if (mapFalse != null) {
+
+            map.put(false, mapFalse.get(scope));
+        } else {
+            map.put(false, null);
+
+        }
+
 
         return map;
     }
@@ -245,6 +265,39 @@ public class IvyParser {
 
         mapTrue = splitByScopes(transitiveTrue);
         mapFalse = splitByScopes(transitiveFalse);
+
+        mapResult.put(Scopes.DEFAULT, groupScopeByTransitive(mapTrue, mapFalse, Scopes.DEFAULT));
+        mapResult.put(Scopes.CLIENT, groupScopeByTransitive(mapTrue, mapFalse, Scopes.CLIENT));
+        mapResult.put(Scopes.PMR, groupScopeByTransitive(mapTrue, mapFalse, Scopes.PMR));
+        mapResult.put(Scopes.TEST, groupScopeByTransitive(mapTrue, mapFalse, Scopes.TEST));
+        mapResult.put(Scopes.PROVIDED, groupScopeByTransitive(mapTrue, mapFalse, Scopes.PROVIDED));
+
+        return mapResult;
+
+    }
+
+
+    public Map<Scopes, Map<Boolean, List<ComplexArtifact>>> splitExcludeElementsByScope(List<Element> dependencyList) {
+
+        replaceScopeWithValue(dependencyList);
+
+        List<ComplexArtifact> transitiveTrue = new ArrayList<>();
+        List<ComplexArtifact> transitiveFalse = new ArrayList<>();
+
+        Map<Scopes, List<ComplexArtifact>> mapTrue;
+        Map<Scopes, List<ComplexArtifact>> mapFalse;
+
+        Map<Scopes, Map<Boolean, List<ComplexArtifact>>> mapResult = new HashMap<>();
+
+        dependencyList.stream().forEach(element -> {
+
+            ComplexArtifact complexArtifact = new ComplexArtifact(element);
+
+            transitiveTrue.add(complexArtifact);
+        });
+
+        mapTrue = splitByScopes(transitiveTrue);
+        mapFalse = null;
 
         mapResult.put(Scopes.DEFAULT, groupScopeByTransitive(mapTrue, mapFalse, Scopes.DEFAULT));
         mapResult.put(Scopes.CLIENT, groupScopeByTransitive(mapTrue, mapFalse, Scopes.CLIENT));

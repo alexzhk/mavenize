@@ -81,20 +81,14 @@ public class AssemblyCreator {
     private List<Element> putExcludes(Scopes scope) {
 
         List<ComplexArtifact> list;
-
-        List<Artifact> excludeList;
-
+        Artifact artifact;
         List<Element> excludeElementList = new ArrayList<>();
 
-        list = dep.getTransitiveDepsByScope(true, scope);
+        list = dep.getExcludesByScope(scope);
 
         for (ComplexArtifact complexArtifact : list) {
 
-            excludeList = complexArtifact.getComplexArtifact().get(complexArtifact.getArtifact());
-
-            if (excludeList != null) {
-
-                for (Artifact artifact : excludeList) {
+            artifact = complexArtifact.getArtifact();
 
                     Element excludeElement = new Element("exclude");
 
@@ -107,11 +101,11 @@ public class AssemblyCreator {
                     }
 
                     excludeElementList.add(excludeElement);
-                }
-
-            }
-
         }
+
+        Element excludeElement = new Element("exclude");
+        excludeElement.setText("*:tests:*");
+        excludeElementList.add(excludeElement);
 
         return excludeElementList;
     }

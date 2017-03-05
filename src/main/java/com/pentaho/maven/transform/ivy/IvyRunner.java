@@ -26,7 +26,7 @@ public class IvyRunner {
 
     public static void main(String[] args) throws JDOMException, IOException {
 
-        String shimName = "cdh510";
+        String shimName = "hdp25";
 
         new IvyRunner().generatePomsAssembliesForScopes(Paths.get(args[0], shimName));
 
@@ -36,6 +36,8 @@ public class IvyRunner {
         String shimName = shimPath.getFileName().toString();
         Map<SubTagType, List<Element>> map;
         Map<Scopes, Map<Boolean, List<ComplexArtifact>>> scopesMap = new HashMap<>();
+        Map<Scopes, Map<Boolean, List<ComplexArtifact>>> excludesMap = new HashMap<>();
+
         DomManipulator manipulator = new DomManipulator();
         Path ivyPath = Paths.get(shimPath.toString(), IVY_XML);
         manipulator.getRootElement(ivyPath);
@@ -47,8 +49,9 @@ public class IvyRunner {
         parser.getVersionValues(propertyPath);
 
         scopesMap = parser.splitElementsByScope(map.get(SubTagType.DEPENDENCY));
+        excludesMap = parser.splitExcludeElementsByScope(map.get(SubTagType.EXCLUDE));
 
-        DependencyScope dep = new DependencyScope(scopesMap, shimPath);
+        DependencyScope dep = new DependencyScope(scopesMap, excludesMap, shimPath);
         dep.createTempFolder();
 
         PomCreator pom = new PomCreator(dep, shimPath);

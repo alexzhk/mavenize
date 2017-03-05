@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
@@ -17,10 +18,12 @@ public class DependencyScope implements Scope {
 
     private Path folder;
     private Map<Scopes, Map<Boolean, List<ComplexArtifact>>> map = new HashMap<>();
+    private Map<Scopes, Map<Boolean, List<ComplexArtifact>>> excludesMap = new HashMap<>();
 
-    public DependencyScope(Map<Scopes, Map<Boolean, List<ComplexArtifact>>> map, Path folder) {
+    public DependencyScope(Map<Scopes, Map<Boolean, List<ComplexArtifact>>> map, Map<Scopes, Map<Boolean, List<ComplexArtifact>>> excludesMap, Path folder) {
 
         this.map = map;
+        this.excludesMap = excludesMap;
         this.folder = folder;
 
     }
@@ -34,7 +37,7 @@ public class DependencyScope implements Scope {
         Path pmr = Paths.get(temp.toString(), SubFolder.PMR.name().toLowerCase());
         Path test = Paths.get(temp.toString(), SubFolder.TEST.name().toLowerCase());
         Path provided = Paths.get(temp.toString(), SubFolder.PROVIDED.name().toLowerCase());
-        
+
         FileUtils.removeFile(temp);
         FileUtils.createFolder(temp);
 
@@ -64,6 +67,12 @@ public class DependencyScope implements Scope {
 
     }
 
+
+    public List<ComplexArtifact> getExcludesByScope(Scopes scope) {
+
+        return excludesMap.get(scope).get(true);
+
+    }
 
     @Override
     public Map<Boolean, List<ComplexArtifact>> getDependenciesByScope(Scopes scope) {
