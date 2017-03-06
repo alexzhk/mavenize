@@ -63,6 +63,9 @@ public class ComplexArtifact {
         String version = element.getAttributeValue("rev");
         String groupId = element.getAttributeValue("org");
         String artifactId = element.getAttributeValue("name");
+        if (artifactId == null) {
+            artifactId = element.getAttributeValue("module");
+        }
         String scope = element.getAttributeValue("conf");
         String classifier = getClassifier(element);
 

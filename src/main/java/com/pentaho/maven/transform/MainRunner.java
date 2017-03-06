@@ -63,7 +63,7 @@ public class MainRunner {
     public static final String ASSEMBLIES_ARTIFACT_DIRECTORY = "assemblies";
     public static final String DEFAULT_SCOPE = "compile";
     public static String[] sourceFolderArrayMaven = new String[]{"src/main/java", "src/main/resources", "src/test/java", "src/test/resources"};
-    public static String[] shimsToProcess = new String[]{/*"hdp24", "hdp25", "cdh58", "cdh59", "mapr510", "emr46",*/"emr52"};
+    public static String[] shimsToProcess = new String[]{/*"hdp24", "hdp25", "cdh58", "cdh59", "mapr510", "emr46",*/"hdp25"};
     public static String sourceJavaSubfolder = sourceFolderArrayMaven[0];
     public static String resourceJavaSubfolder = sourceFolderArrayMaven[1];
     public static String testJavaSubfolder = sourceFolderArrayMaven[2];
@@ -90,7 +90,7 @@ public class MainRunner {
         }
 
         MainRunner mainRunner = new MainRunner(args[0], args[1]);
-        String shimName = "cdh58";
+        String shimName = "hdp25";
         mainRunner.runForShim(shimName);
         //DirectoryComparator.compare("cdh58", "D:\\1\\p-h-s1\\cdh58\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims2\\shims\\cdh58\\assemblies\\cdh58-shim\\target\\");
     }
