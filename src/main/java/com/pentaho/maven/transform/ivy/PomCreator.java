@@ -45,6 +45,14 @@ public class PomCreator {
             dependency.setArtifactId(complexArtifact.getArtifact().getArtifactId());
             dependency.setVersion(complexArtifact.getArtifact().getVersion());
 
+            if (scope.name().toLowerCase().equals("test")) {
+                dependency.setScope("test");
+            }
+
+            if (scope.name().toLowerCase().equals("provided")) {
+                dependency.setScope("provided");
+            }
+
             /*Element element = new Element("dependency");
             element.addContent(new Element("groupId").setText(complexArtifact.getArtifact().getGroupId()));
             element.addContent(new Element("artifactId").setText(complexArtifact.getArtifact().getArtifactId()));
@@ -89,6 +97,14 @@ public class PomCreator {
             dependency.setGroupId(complexArtifact.getArtifact().getGroupId());
             dependency.setArtifactId(complexArtifact.getArtifact().getArtifactId());
             dependency.setVersion(complexArtifact.getArtifact().getVersion());
+
+            if (scope.name().toLowerCase().equals("test")) {
+                dependency.setScope("test");
+            }
+
+            if (scope.name().toLowerCase().equals("provided")) {
+                dependency.setScope("provided");
+            }
 
         /*    Element element = new Element("dependency");
             element.addContent(new Element("groupId").setText(complexArtifact.getArtifact().getGroupId()));
@@ -173,7 +189,7 @@ public class PomCreator {
 
         //map = createDependencySection(scope);
 
-        String shimName =  this.path.getFileName().toString();
+        String shimName = this.path.getFileName().toString();
         Path path = Paths.get(this.path.toString(), IvyRunner.TEMP_MVN_SHIM_FOLDER, subFolder.name().toLowerCase(), IvyRunner.POM_XML);
 
         map = createDependencySection(scope);
