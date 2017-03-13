@@ -90,9 +90,9 @@ public class MainRunner {
         }
 
         MainRunner mainRunner = new MainRunner(args[0], args[1]);
-        String shimName = "hdp25";
+        String shimName = "mapr520";
         mainRunner.runForShim(shimName);
-        //DirectoryComparator.compare("cdh58", "D:\\1\\p-h-s1\\cdh58\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims2\\shims\\cdh58\\assemblies\\cdh58-shim\\target\\");
+        //DirectoryComparator.compare(shimName, "D:\\1\\p-h-s1\\"+shimName+"\\dist\\", "D:\\1\\BAD-570-test-run\\pentaho-hadoop-shims\\shims\\"+shimName+"\\assemblies\\"+shimName+"-shim\\target\\");
     }
 
     public void runForShim(String shimName) throws JDOMException, URISyntaxException, ShimCannotBeProcessed, IOException {
@@ -319,7 +319,6 @@ public class MainRunner {
         removeDuplicateDeps(modulePath);
 
         addAssemblySectionForShim(modulePath);
-        //runScriptAssemblyGenerating(modulePath);
 
         AssemblyGenerator assembly = new AssemblyGenerator(modulePath);
         assembly.createTrees();
@@ -351,16 +350,13 @@ public class MainRunner {
         moveGenerateAssembly(modulePath, assemblyDirectory, false);
         Path jarDirectory = Paths.get(outputFolder, SHIMS_FOLDER, shimName, IMPL_ARTIFACT_DIRECTORY);
         PomUtils.parseAndSavePom("pom_impl_shim_template.xml", shimName, jarDirectory);
-        addDependencies(jarDirectory, Paths.get(tempFolderMaven.toString(), "test"));
         addDependencies(jarDirectory, Paths.get(tempFolderMaven.toString(), "provided"));
+        addDependencies(jarDirectory, Paths.get(tempFolderMaven.toString(), "test"));
         //movePomToDestFolder(modulePath, jarDirectory);
         //our pom for impl here - only test dependencies
 
         //create pom for cdh57 reactor project - some pom prepared - some vars
         PomUtils.parseAndSavePom("pom_shim_reactor_template.xml", modulePath.getFileName().toString(), shimReactorDir);
-
-        //here remove assembly section from pom in jar artifact - make function to find by condition, remove
-        //XmlUtils.deleteElement(Paths.get(jarDirectory.toString(), POM_XML).toString(), new ElementWithChildValueInParentPathCondition(new String[]{"build", "plugins"}, "artifactId"), Constants.ASSEMBLY_PLUGIN);
 
         //add element
 
@@ -370,7 +366,9 @@ public class MainRunner {
         //add common, import of common to every scope
         //generateAssemblyScope(shimReactorDir, "common"); - condition, no adding to assembly
         generateAssemblyScope(shimReactorDir, "default");
-        generateAssemblyScope(shimReactorDir, "client");
+        if (!shimName.startsWith("mapr")) {
+            generateAssemblyScope(shimReactorDir, "client");
+        }
         generateAssemblyScope(shimReactorDir, "pmr");
 
         //add structure to git
@@ -393,7 +391,6 @@ public class MainRunner {
         addToGithub(modulePath);
         removeGithub(modulePath);
         PomUtils.addModuleToModuleList(shimReactorDir.getParent(), shimName);
-//        DirectoryComparator.runCompareForShim(modulePath, moduleBashExecutor);
     }
 
     private void generateAssemblyScope(Path modulePath, String scopeName) throws IOException, JDOMException, ShimCannotBeProcessed, URISyntaxException {
