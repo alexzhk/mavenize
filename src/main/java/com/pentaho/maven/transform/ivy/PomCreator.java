@@ -67,7 +67,16 @@ public class PomCreator {
 
             }
 
-            //elementList.add(element);
+            List<Exclusion> exclusionList = new ArrayList<>();
+            exclusionList = dependency.getExclusions();
+
+            if (exclusionList.isEmpty()) {
+                Exclusion exclusion = new Exclusion();
+                exclusion.setGroupId("*");
+                exclusion.setArtifactId("*");
+                exclusionList.add(exclusion);
+                dependency.setExclusions(exclusionList);
+            }
 
             dependencyList.add(dependency);
 
